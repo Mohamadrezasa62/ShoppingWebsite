@@ -5,6 +5,7 @@
 - Market: Iran; Persian-first, right-to-left, mobile-friendly interface; toman display and explicit currency-unit handling in payment integrations.
 - Business: multi-seller marketplace. A shared product may have multiple seller offers, each with its own price, stock, warranty, and fulfillment method.
 - Channels: responsive web storefront, seller portal, and administrator portal. Native mobile apps are outside the first release.
+- Platform: Docker Compose development stack with a Django API, separately containerized frontend, PostgreSQL, Redis, and background worker. Production may use an orchestrator while keeping the same service boundaries.
 - Launch: milestones 1–10 form the first public release. Milestone 11 is later expansion.
 - Provider names are integration targets, not claims of an existing agreement or unrestricted API access.
 
@@ -18,7 +19,7 @@
 
 ## 2. Platform foundation
 
-**Deliver:** Responsive application shell; API and database setup; migrations and seed data; phone-based customer sign-in and staff sign-in; role-based access; file/media storage abstraction; development and test environments; CI checks; logging, error tracking, and health checks.
+**Deliver:** Dockerized frontend and Django API; separate PostgreSQL, Redis and background-worker services; migrations and seed data; phone-based customer sign-in and staff sign-in; role-based access; file/media storage abstraction; development and test environments; CI checks; logging, error tracking, and health checks.
 
 **Acceptance:** Buyer, seller, and admin accounts can access only their permitted areas in a deployed test environment. A fresh checkout can be installed, migrated, seeded, tested, and started from documented commands.
 
