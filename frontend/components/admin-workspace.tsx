@@ -7,7 +7,7 @@ type Role = "catalog_operator" | "support_agent" | "finance_operator" | "marketp
 type Tab = "overview" | "sellers" | "categories" | "staff" | "audit";
 type Profile = { id: number; phone: string; can_access_admin: boolean; staff_roles: Role[]; is_superuser: boolean };
 type Summary = { pending_sellers: number; approved_sellers: number; categories: number; staff_users: number };
-type Seller = { id: number; name: string; status: string; review_note: string };
+type Seller = { id: number; name: string; legal_name: string; business_identifier: string; contact_phone: string; status: string; review_note: string };
 type Category = { id: number; name: string; slug: string; parent_id: number | null; is_active: boolean };
 type Staff = { id: number; phone: string; is_staff: boolean; is_superuser: boolean; roles: Role[] };
 type AuditEvent = { id: number; created_at: string; actor: string | null; action: string; target_type: string; target_id: string; reason: string };
@@ -44,7 +44,7 @@ function SellerRow({ seller, changed }: { seller: Seller; changed: () => void })
     const response = await apiRequest("POST", `/api/v1/operations/sellers/${seller.id}/decision/`, { status, reason });
     if (response.ok) { setMessage("ثبت شد."); changed(); } else setMessage("ثبت تصمیم انجام نشد.");
   }
-  return <li className="admin-record"><div><strong>{seller.name}</strong><p>شناسهٔ {seller.id} · {seller.status}</p>{seller.review_note && <p>آخرین دلیل: {seller.review_note}</p>}</div>
+  return <li className="admin-record"><div><strong>{seller.name}</strong><p>شناسهٔ {seller.id} · {seller.status}</p><p>{seller.legal_name} · {seller.business_identifier} · <span dir="ltr">{seller.contact_phone}</span></p>{seller.review_note && <p>آخرین دلیل: {seller.review_note}</p>}</div>
     {!!sellerChoices[seller.status]?.length && <form className="admin-inline-form" onSubmit={submit}>
       <label>تصمیم<select value={status} onChange={(event) => setStatus(event.target.value)}>{sellerChoices[seller.status].map((choice) => <option key={choice} value={choice}>{choice}</option>)}</select></label>
       <label>دلیل<input required minLength={3} maxLength={500} value={reason} onChange={(event) => setReason(event.target.value)} /></label>

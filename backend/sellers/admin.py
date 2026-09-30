@@ -5,9 +5,9 @@ from .models import Seller, SellerMembership
 
 @admin.register(Seller)
 class SellerAdmin(admin.ModelAdmin):
-    list_display = ("name", "status", "created_at")
+    list_display = ("name", "legal_name", "business_identifier", "status", "created_at")
     list_filter = ("status",)
-    search_fields = ("name",)
+    search_fields = ("name", "legal_name", "business_identifier")
 
 
 @admin.register(SellerMembership)

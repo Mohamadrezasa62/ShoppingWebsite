@@ -8,6 +8,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 
 from catalog.models import Offer, Product, Variant
+from accounts.phones import normalize_iran_mobile
 
 from .models import Seller, SellerMembership
 
@@ -48,6 +49,7 @@ def my_stores(request):
     return JsonResponse({"stores": [{
         "id": membership.seller_id, "name": membership.seller.name,
         "role": membership.role, "status": membership.seller.status,
+        "description": membership.seller.description, "contact_phone": membership.seller.contact_phone,
     } for membership in memberships]})
 
 
@@ -58,12 +60,43 @@ def apply(request):
         return error
     data = _data(request)
     name = data.get("name", "").strip() if data and isinstance(data.get("name"), str) else ""
-    if not 3 <= len(name) <= 200:
-        return JsonResponse({"error": "invalid_store_name"}, status=400)
+    legal_name = data.get("legal_name", "").strip() if data and isinstance(data.get("legal_name"), str) else ""
+    business_identifier = data.get("business_identifier", "").strip() if data and isinstance(data.get("business_identifier"), str) else ""
+    try:
+        contact_phone = normalize_iran_mobile(data.get("contact_phone", "") if data else "")
+    except ValueError:
+        return JsonResponse({"error": "invalid_contact_phone"}, status=400)
+    if not 3 <= len(name) <= 200 or not 3 <= len(legal_name) <= 200 or not 8 <= len(business_identifier) <= 32:
+        return JsonResponse({"error": "invalid_application"}, status=400)
     with transaction.atomic():
-        seller = Seller.objects.create(name=name)
+        seller = Seller.objects.create(name=name, legal_name=legal_name, business_identifier=business_identifier, contact_phone=contact_phone)
         SellerMembership.objects.create(seller=seller, user=request.user, role=SellerMembership.Role.OWNER)
     return JsonResponse({"store": {"id": seller.pk, "name": seller.name, "status": seller.status}}, status=201)
+
+
+@require_http_methods(["PATCH"])
+@csrf_protect
+def update_profile(request, seller_id):
+    if error := _auth(request):
+        return error
+    membership = _membership(request, seller_id)
+    if membership.role != SellerMembership.Role.OWNER or membership.seller.status != Seller.Status.APPROVED:
+        return JsonResponse({"error": "forbidden"}, status=403)
+    data = _data(request)
+    if not data or not set(data).issubset({"description", "contact_phone"}):
+        return JsonResponse({"error": "invalid_profile"}, status=400)
+    seller = membership.seller
+    if "description" in data:
+        if not isinstance(data["description"], str) or len(data["description"]) > 2000:
+            return JsonResponse({"error": "invalid_description"}, status=400)
+        seller.description = data["description"].strip()
+    if "contact_phone" in data:
+        try:
+            seller.contact_phone = normalize_iran_mobile(data["contact_phone"])
+        except ValueError:
+            return JsonResponse({"error": "invalid_contact_phone"}, status=400)
+    seller.save(update_fields=[key for key in ("description", "contact_phone") if key in data])
+    return JsonResponse({"store": {"id": seller.pk, "description": seller.description, "contact_phone": seller.contact_phone}})
 
 
 @require_http_methods(["GET"])

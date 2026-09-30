@@ -79,6 +79,9 @@ def sellers(_request):
         {
             "id": seller.id,
             "name": seller.name,
+            "legal_name": seller.legal_name,
+            "business_identifier": seller.business_identifier,
+            "contact_phone": seller.contact_phone,
             "status": seller.status,
             "created_at": seller.created_at.isoformat(),
             "review_note": seller.review_note,

@@ -19,16 +19,20 @@ class SellerPortalTests(TestCase):
     def post(self, path, body):
         return self.client.post(path, json.dumps(body), content_type="application/json")
 
+    def application(self, name="Store"):
+        return {"name": name, "legal_name": "Registered Store Company", "business_identifier": "REG12345678", "contact_phone": "09123456784"}
+
     def patch(self, path, body):
         return self.client.patch(path, json.dumps(body), content_type="application/json")
 
     def test_application_needs_signin_then_admin_approval(self):
-        self.assertEqual(self.post("/api/v1/seller/applications/", {"name": "Store"}).status_code, 401)
+        self.assertEqual(self.post("/api/v1/seller/applications/", self.application()).status_code, 401)
         self.client.force_login(self.owner)
-        response = self.post("/api/v1/seller/applications/", {"name": "Store"})
+        response = self.post("/api/v1/seller/applications/", self.application())
         self.assertEqual(response.status_code, 201)
         seller = Seller.objects.get(pk=response.json()["store"]["id"])
         self.assertEqual(seller.status, Seller.Status.APPLIED)
+        self.assertEqual(seller.contact_phone, "+989123456784")
         self.assertTrue(SellerMembership.objects.filter(seller=seller, user=self.owner, role=SellerMembership.Role.OWNER).exists())
         self.assertEqual(self.client.get("/api/v1/seller/stores/").json()["stores"][0]["status"], "applied")
         url = f"/api/v1/seller/stores/{seller.pk}/offers/"
@@ -84,4 +88,15 @@ class SellerPortalTests(TestCase):
     def test_changes_require_csrf(self):
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.owner)
-        self.assertEqual(client.post("/api/v1/seller/applications/", json.dumps({"name": "Store"}), content_type="application/json").status_code, 403)
+        self.assertEqual(client.post("/api/v1/seller/applications/", json.dumps(self.application()), content_type="application/json").status_code, 403)
+
+    def test_only_approved_owner_can_edit_public_profile(self):
+        seller = Seller.objects.create(name="Store", status=Seller.Status.APPROVED)
+        SellerMembership.objects.create(seller=seller, user=self.owner, role=SellerMembership.Role.OWNER)
+        url = f"/api/v1/seller/stores/{seller.pk}/profile/"
+        self.client.force_login(self.owner)
+        self.assertEqual(self.patch(url, {"description": "Quality electronics", "contact_phone": "09123456784"}).status_code, 200)
+        seller.refresh_from_db()
+        self.assertEqual(seller.description, "Quality electronics")
+        self.client.force_login(self.other)
+        self.assertEqual(self.patch(url, {"description": "Hijack"}).status_code, 404)

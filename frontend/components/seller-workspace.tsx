@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { apiRequest } from "@/lib/api";
 
-type Store = { id: number; name: string; status: string; role: string };
+type Store = { id: number; name: string; status: string; role: string; description: string; contact_phone: string };
 type Variant = { id: number; sku: string; product_title: string; attributes: Record<string, string> };
 type Offer = { id: number; variant_id: number; product_title: string; sku: string; price_toman: number; available_quantity: number; reserved_quantity: number; warranty: string; fulfillment: string; status: string };
 
@@ -37,6 +37,11 @@ export function SellerWorkspace() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [variants, setVariants] = useState<Variant[]>([]);
   const [applicationName, setApplicationName] = useState("");
+  const [legalName, setLegalName] = useState("");
+  const [businessIdentifier, setBusinessIdentifier] = useState("");
+  const [applicationPhone, setApplicationPhone] = useState("");
+  const [description, setDescription] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
   const [query, setQuery] = useState("");
   const [variantId, setVariantId] = useState("");
   const [price, setPrice] = useState("");
@@ -65,12 +70,13 @@ export function SellerWorkspace() {
   }, []);
   useEffect(() => { void loadStores(); }, [loadStores]);
   const selected = stores.find((store) => store.id === selectedId);
+  useEffect(() => { setDescription(selected?.description ?? ""); setProfilePhone(selected?.contact_phone ?? ""); }, [selected?.id, selected?.description, selected?.contact_phone]);
   useEffect(() => { if (selected?.status === "approved") void loadOffers(selected.id); else setOffers([]); }, [selected?.id, selected?.status, loadOffers]);
 
   async function apply(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setError("");
-    const response = await apiRequest("POST", "/api/v1/seller/applications/", { name: applicationName });
-    if (response.ok) { setApplicationName(""); setNotice("درخواست فروشگاه ثبت شد."); await loadStores(); }
+    const response = await apiRequest("POST", "/api/v1/seller/applications/", { name: applicationName, legal_name: legalName, business_identifier: businessIdentifier, contact_phone: applicationPhone });
+    if (response.ok) { setApplicationName(""); setLegalName(""); setBusinessIdentifier(""); setApplicationPhone(""); setNotice("درخواست فروشگاه ثبت شد."); await loadStores(); }
     else setError("ثبت درخواست انجام نشد.");
   }
   async function search(event: FormEvent<HTMLFormElement>) {
@@ -88,14 +94,20 @@ export function SellerWorkspace() {
     if (response.ok) { setNotice("پیشنهاد ثبت شد."); setVariantId(""); setPrice(""); setStock(""); setWarranty(""); void loadOffers(selectedId); }
     else { const result = await response.json(); setError(result.error === "offer_already_exists" ? "برای این مدل از این فروشگاه پیشنهادی وجود دارد." : "ثبت پیشنهاد انجام نشد."); }
   }
+  async function saveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if (!selectedId) return;
+    const response = await apiRequest("PATCH", `/api/v1/seller/stores/${selectedId}/profile/`, { description, contact_phone: profilePhone });
+    if (response.ok) { setNotice("اطلاعات فروشگاه ذخیره شد."); await loadStores(); }
+    else setError("اطلاعات فروشگاه ذخیره نشد.");
+  }
 
   return <div className="admin-shell"><header className="admin-header"><a href="/" className="brand">ShoppingWebsite</a><span>پنل فروشنده</span><a href="/account/">حساب من</a></header><main className="catalog-main">
     <h1>فروشگاه‌های من</h1>{error && <p className="admin-alert" role="alert">{error}</p>}{notice && <p className="admin-alert" role="status">{notice}</p>}
     {signedOut ? <p>برای ثبت فروشگاه و مدیریت پیشنهادها <a href="/login/">وارد شوید</a>.</p> : <>
       <div className="seller-store-list">{stores.map((store) => <button type="button" key={store.id} className={selectedId === store.id ? "selected" : ""} onClick={() => setSelectedId(store.id)}>{store.name} · {statusLabels[store.status] ?? store.status}</button>)}</div>
-      <section className="admin-card"><h2>درخواست فروشگاه</h2><form className="admin-inline-form" onSubmit={apply}><label>نام فروشگاه<input minLength={3} maxLength={200} required value={applicationName} onChange={(event) => setApplicationName(event.target.value)} /></label><button type="submit">ثبت درخواست</button></form><p>پس از بررسی و تأیید مدیر بازارگاه، مدیریت پیشنهادها فعال می‌شود.</p></section>
+      <section className="admin-card"><h2>درخواست فروشگاه</h2><form className="admin-inline-form" onSubmit={apply}><label>نام فروشگاه<input minLength={3} maxLength={200} required value={applicationName} onChange={(event) => setApplicationName(event.target.value)} /></label><label>نام قانونی<input minLength={3} maxLength={200} required value={legalName} onChange={(event) => setLegalName(event.target.value)} /></label><label>شناسهٔ کسب‌وکار<input minLength={8} maxLength={32} required value={businessIdentifier} onChange={(event) => setBusinessIdentifier(event.target.value)} /></label><label>شمارهٔ تماس<input inputMode="tel" required value={applicationPhone} onChange={(event) => setApplicationPhone(event.target.value)} /></label><button type="submit">ثبت درخواست</button></form><p>پس از بررسی و تأیید مدیر بازارگاه، مدیریت پیشنهادها فعال می‌شود.</p></section>
       {selected && selected.status !== "approved" && <section className="admin-card seller-section"><h2>{selected.name}</h2><p>وضعیت درخواست: {statusLabels[selected.status] ?? selected.status}</p></section>}
-      {selected?.status === "approved" && <><section className="admin-card seller-section"><h2>افزودن پیشنهاد به {selected.name}</h2><form className="admin-inline-form" onSubmit={search}><label>جست‌وجوی محصول یا کد مدل<input value={query} onChange={(event) => setQuery(event.target.value)} /></label><button type="submit">جست‌وجو</button></form>
+      {selected?.status === "approved" && <><section className="admin-card seller-section"><h2>پروفایل {selected.name}</h2><form className="admin-inline-form" onSubmit={saveProfile}><label>توضیح فروشگاه<input maxLength={2000} value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>شمارهٔ تماس<input inputMode="tel" value={profilePhone} onChange={(event) => setProfilePhone(event.target.value)} /></label><button type="submit">ذخیرهٔ پروفایل</button></form></section><section className="admin-card seller-section"><h2>افزودن پیشنهاد به {selected.name}</h2><form className="admin-inline-form" onSubmit={search}><label>جست‌وجوی محصول یا کد مدل<input value={query} onChange={(event) => setQuery(event.target.value)} /></label><button type="submit">جست‌وجو</button></form>
         <form className="admin-inline-form" onSubmit={createOffer}><label>مدل<select required value={variantId} onChange={(event) => setVariantId(event.target.value)}><option value="">انتخاب مدل</option>{variants.map((variant) => <option key={variant.id} value={variant.id}>{variant.product_title} · {variant.sku} · {Object.values(variant.attributes).join(" / ")}</option>)}</select></label>
           <label>قیمت (تومان)<input type="number" min="1" required value={price} onChange={(event) => setPrice(event.target.value)} /></label><label>موجودی<input type="number" min="0" required value={stock} onChange={(event) => setStock(event.target.value)} /></label><label>گارانتی<input maxLength={200} value={warranty} onChange={(event) => setWarranty(event.target.value)} /></label><button type="submit">ثبت پیشنهاد</button></form>
       </section><section className="admin-card seller-section"><h2>پیشنهادهای {selected.name}</h2><ul className="admin-list">{offers.map((offer) => <OfferRow key={offer.id} offer={offer} storeId={selected.id} changed={() => void loadOffers(selected.id)} />)}</ul>{offers.length === 0 && <p>هنوز پیشنهادی ثبت نشده است.</p>}</section></>}
