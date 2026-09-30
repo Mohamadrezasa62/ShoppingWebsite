@@ -6,6 +6,7 @@ __pycache__/
 node_modules/
 .next/
 *.tsbuildinfo
+*.sqlite3
 dist/
 coverage/
 media/

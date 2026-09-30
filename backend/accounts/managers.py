@@ -1,5 +1,7 @@
 from django.contrib.auth.base_user import BaseUserManager
 
+from .phones import normalize_iran_mobile
+
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -7,7 +9,7 @@ class UserManager(BaseUserManager):
     def create_user(self, phone, password=None, **extra_fields):
         if not phone:
             raise ValueError("A phone number is required")
-        user = self.model(phone=phone, **extra_fields)
+        user = self.model(phone=normalize_iran_mobile(phone), **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user

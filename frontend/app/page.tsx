@@ -4,7 +4,7 @@ export default function Home() {
       <header className="site-header">
         <div className="header-inner">
           <strong className="brand">ShoppingWebsite</strong>
-          <span className="header-note">بازارگاه آنلاین</span>
+          <a href="/login" className="header-note">ورود / ثبت‌نام</a>
         </div>
       </header>
       <main className="main-content">

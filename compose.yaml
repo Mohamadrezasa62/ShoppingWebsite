@@ -27,9 +27,10 @@ services:
   api:
     build: ./backend
     env_file: .env
-    command: ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+    command: ["sh", "-c", "python manage.py migrate && python manage.py seed_roles && python manage.py runserver 0.0.0.0:8000"]
     volumes:
       - ./backend:/app
+      - media_data:/app/media
     ports:
       - "8000:8000"
     depends_on:
@@ -44,6 +45,7 @@ services:
     command: ["celery", "-A", "config", "worker", "--loglevel=info"]
     volumes:
       - ./backend:/app
+      - media_data:/app/media
     depends_on:
       db:
         condition: service_healthy
@@ -52,6 +54,8 @@ services:
 
   frontend:
     build: ./frontend
+    environment:
+      API_INTERNAL_URL: http://api:8000
     ports:
       - "3000:3000"
     depends_on:
@@ -61,3 +65,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  media_data:
