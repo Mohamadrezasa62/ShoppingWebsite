@@ -25,7 +25,7 @@ Docker Compose will run separate `frontend`, `api`, `worker`, `db`, and `redis` 
 - **Database:** PostgreSQL is the source of truth for products, offers, inventory, orders, payments and audit records. Migrations are versioned with code.
 - **Cache and queue:** Redis supports cache, rate limits and the background-job broker. Durable business state remains in PostgreSQL.
 - **Worker:** Celery runs notifications, media processing, reconciliation and timeout jobs. Tasks are idempotent and retryable.
-- **Frontend:** A separate TypeScript web service will render Persian RTL buyer, seller and admin surfaces. The exact framework can be chosen during foundation setup; it must support server rendering for public catalog pages and shared design components. The initial Compose frontend is only an Nginx-hosted placeholder for the service boundary.
+- **Frontend:** A separate Next.js TypeScript service renders Persian RTL buyer, seller and admin surfaces. Public catalog pages can be server-rendered. The first page is a responsive landing shell; business features remain to be built.
 - **Media:** Local development storage behind an adapter; production object storage is selected before launch. Direct upload and scan rules are required for seller media.
 - **Integrations:** Each payment, SMS and shipping provider is behind an adapter with its own configuration, callback verification and test suite. No provider secret enters browser code or Git.
 

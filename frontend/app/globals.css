@@ -1,0 +1,15 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; background: #f6f7f9; color: #17202a; font-family: Tahoma, Arial, sans-serif; line-height: 1.7; }
+.site-header { background: #fff; border-bottom: 1px solid #e5e7eb; }
+.header-inner { max-width: 1120px; margin: auto; min-height: 72px; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.brand { color: #dc2626; font-size: 1.3rem; direction: ltr; }
+.header-note { color: #667085; font-size: .9rem; }
+.main-content { max-width: 1120px; margin: 0 auto; padding: clamp(24px, 8vw, 96px) 24px; }
+.intro-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 24px; max-width: 850px; padding: clamp(24px, 5vw, 64px); box-shadow: 0 20px 60px rgba(23,32,42,.05); }
+.eyebrow { display: inline-block; color: #b91c1c; background: #fef2f2; padding: 4px 12px; border-radius: 99px; font-size: .9rem; }
+h1 { font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.35; margin: 24px 0 16px; }
+p { color: #475467; max-width: 62ch; }
+.feature-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 32px; }
+.feature-list span { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 12px; font-size: .9rem; }
+@media (max-width: 600px) { .header-inner { min-height: 60px; } .intro-card { border-radius: 16px; } .header-note { display: none; } }
