@@ -6,7 +6,7 @@ from django.test import Client, TestCase
 from catalog.models import Category, Offer, Product, Variant
 from sellers.models import Seller
 
-from .models import CartLine
+from .models import Address, CartLine, ShippingRule
 
 
 class CartTests(TestCase):
@@ -57,3 +57,25 @@ class CartTests(TestCase):
         client.force_login(self.user)
         response = client.post("/api/v1/commerce/cart/", json.dumps({"offer_id": self.offer.pk, "quantity": 1}), content_type="application/json")
         self.assertEqual(response.status_code, 403)
+
+    def test_address_and_shipping_quote_group_seller_fees(self):
+        self.client.force_login(self.user)
+        address_data = {"full_name": "Buyer Name", "phone": "09123456786", "province": "Tehran", "city": "Tehran", "street": "Main street", "postal_code": "۱۲۳۴۵۶۷۸۹۰"}
+        response = self.client.post("/api/v1/commerce/addresses/", json.dumps(address_data), content_type="application/json")
+        self.assertEqual(response.status_code, 201)
+        address_id = response.json()["address"]["id"]
+        self.assertEqual(response.json()["address"]["postal_code"], "1234567890")
+        self.post({"offer_id": self.offer.pk, "quantity": 2})
+        missing = self.client.get("/api/v1/commerce/quote/", {"address_id": address_id}).json()["quote"]
+        self.assertFalse(missing["ready"])
+        self.assertEqual(len(missing["missing_shipping_rules"]), 1)
+        ShippingRule.objects.create(province="Tehran", fulfillment="seller", fee_toman=15000, min_days=2, max_days=4)
+        quote = self.client.get("/api/v1/commerce/quote/", {"address_id": address_id}).json()["quote"]
+        self.assertTrue(quote["ready"])
+        self.assertEqual(quote["item_subtotal_toman"], 20000)
+        self.assertEqual(quote["shipping_total_toman"], 15000)
+        self.assertEqual(quote["estimated_total_toman"], 35000)
+        self.assertFalse(quote["is_final"])
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get("/api/v1/commerce/quote/", {"address_id": address_id}).status_code, 404)
+        self.assertEqual(self.client.delete(f"/api/v1/commerce/addresses/{address_id}/").status_code, 404)
