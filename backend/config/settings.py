@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     "accounts",
     "sellers",
     "catalog",
+    "commerce",
     "operations",
 ]
 

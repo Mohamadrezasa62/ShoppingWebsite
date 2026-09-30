@@ -88,3 +88,14 @@ p { color: #475467; max-width: 62ch; }
 .seller-store-list button { border: 1px solid #98a2b3; background: #fff; border-radius: 9px; padding: 10px 14px; font: inherit; cursor: pointer; }
 .seller-store-list button.selected { border: 2px solid #b91c1c; color: #991b1b; font-weight: 700; }
 .seller-section { margin-top: 18px; }
+.catalog-action { min-height: 42px; border: 0; border-radius: 8px; background: #b91c1c; color: #fff; padding: 8px 16px; font: inherit; cursor: pointer; }
+.catalog-action:disabled { opacity: .5; cursor: default; }
+.cart-line { display: flex; justify-content: space-between; gap: 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 12px; }
+.cart-line a { color: inherit; }
+.cart-line p { margin: 4px 0; }
+.cart-actions { display: flex; align-items: end; gap: 10px; margin-top: 12px; }
+.cart-actions label { display: grid; gap: 4px; }
+.cart-actions select, .cart-actions button { min-height: 38px; border: 1px solid #98a2b3; border-radius: 7px; background: #fff; padding: 6px 10px; font: inherit; }
+.cart-actions button { cursor: pointer; }
+.cart-warning { color: #b42318; }
+@media (max-width: 600px) { .cart-line { flex-direction: column; } }
