@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.core.exceptions import ValidationError
 
 
 class Cart(models.Model):
@@ -44,3 +45,51 @@ class ShippingRule(models.Model):
             models.UniqueConstraint(fields=["province", "fulfillment"], name="unique_province_fulfillment_rule"),
             models.CheckConstraint(condition=models.Q(max_days__gte=models.F("min_days")), name="shipping_days_ordered"),
         ]
+
+
+class Order(models.Model):
+    class Status(models.TextChoices):
+        PENDING_PAYMENT = "pending_payment", "Pending payment"
+        EXPIRED = "expired", "Expired"
+        PAID = "paid", "Paid"
+        CANCELLED = "cancelled", "Cancelled"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders")
+    idempotency_key = models.UUIDField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING_PAYMENT)
+    address_snapshot = models.JSONField()
+    item_total_toman = models.PositiveBigIntegerField()
+    shipping_total_toman = models.PositiveBigIntegerField()
+    grand_total_toman = models.PositiveBigIntegerField()
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "idempotency_key"], name="unique_checkout_request")]
+
+
+class OrderDelivery(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="deliveries")
+    seller = models.ForeignKey("sellers.Seller", on_delete=models.PROTECT)
+    seller_name = models.CharField(max_length=200)
+    fulfillment = models.CharField(max_length=10, choices=(("seller", "Seller"), ("platform", "Platform")))
+    shipping_fee_toman = models.PositiveBigIntegerField()
+    min_days = models.PositiveSmallIntegerField()
+    max_days = models.PositiveSmallIntegerField()
+
+
+class OrderLine(models.Model):
+    delivery = models.ForeignKey(OrderDelivery, on_delete=models.PROTECT, related_name="lines")
+    offer = models.ForeignKey("catalog.Offer", on_delete=models.PROTECT)
+    product_title = models.CharField(max_length=240)
+    variant_attributes = models.JSONField()
+    seller_name = models.CharField(max_length=200)
+    warranty = models.CharField(max_length=200, blank=True)
+    quantity = models.PositiveSmallIntegerField()
+    unit_price_toman = models.PositiveBigIntegerField()
+    line_total_toman = models.PositiveBigIntegerField()
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise ValidationError("Order line snapshots are immutable")
+        return super().save(*args, **kwargs)

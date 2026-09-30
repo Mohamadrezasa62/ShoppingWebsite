@@ -100,6 +100,9 @@ REST_FRAMEWORK = {
 }
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+CELERY_BEAT_SCHEDULE = {
+    "expire-pending-orders": {"task": "commerce.tasks.expire_due_orders", "schedule": 60.0},
+}
 
 if not DEBUG and SECRET_KEY == "unsafe-local-development-only":
     raise RuntimeError("Set DJANGO_SECRET_KEY for non-development environments")

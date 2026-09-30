@@ -1,12 +1,16 @@
 import json
+from datetime import timedelta
+from uuid import uuid4
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
+from django.utils import timezone
 
 from catalog.models import Category, Offer, Product, Variant
 from sellers.models import Seller
 
-from .models import Address, CartLine, ShippingRule
+from .models import Address, CartLine, Order, OrderLine, ShippingRule
+from .services import expire_order
 
 
 class CartTests(TestCase):
@@ -79,3 +83,45 @@ class CartTests(TestCase):
         self.client.force_login(self.other)
         self.assertEqual(self.client.get("/api/v1/commerce/quote/", {"address_id": address_id}).status_code, 404)
         self.assertEqual(self.client.delete(f"/api/v1/commerce/addresses/{address_id}/").status_code, 404)
+
+    def test_checkout_snapshots_totals_reserves_and_expires_idempotently(self):
+        self.client.force_login(self.user)
+        address = Address.objects.create(user=self.user, full_name="Buyer Name", phone="+989123456786", province="Tehran", city="Tehran", street="Main street", postal_code="1234567890")
+        ShippingRule.objects.create(province="Tehran", fulfillment="seller", fee_toman=15000, min_days=2, max_days=4)
+        self.post({"offer_id": self.offer.pk, "quantity": 2})
+        key = str(uuid4())
+        payload = {"address_id": address.pk, "idempotency_key": key}
+        response = self.client.post("/api/v1/commerce/checkout/", json.dumps(payload), content_type="application/json")
+        self.assertEqual(response.status_code, 201)
+        order_id = response.json()["order"]["id"]
+        self.assertEqual(response.json()["order"]["grand_total_toman"], 35000)
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.reserved_quantity, 3)
+        self.assertEqual(self.client.get("/api/v1/commerce/cart/").json()["cart"]["lines"], [])
+        self.assertEqual(self.client.post("/api/v1/commerce/checkout/", json.dumps(payload), content_type="application/json").status_code, 200)
+        self.assertEqual(Order.objects.count(), 1)
+        self.offer.price_toman = 20000
+        self.offer.save()
+        self.assertEqual(OrderLine.objects.get().unit_price_toman, 10000)
+        self.assertEqual(self.client.get(f"/api/v1/commerce/orders/{order_id}/").json()["order"]["grand_total_toman"], 35000)
+        order = Order.objects.get(pk=order_id)
+        self.assertFalse(expire_order(order.pk, order.expires_at - timedelta(seconds=1)))
+        self.assertTrue(expire_order(order.pk, order.expires_at + timedelta(seconds=1)))
+        self.assertFalse(expire_order(order.pk, order.expires_at + timedelta(seconds=2)))
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.reserved_quantity, 1)
+        self.assertEqual(Order.objects.get(pk=order_id).status, Order.Status.EXPIRED)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.get(f"/api/v1/commerce/orders/{order_id}/").status_code, 404)
+
+    def test_checkout_failure_keeps_cart_and_stock(self):
+        self.client.force_login(self.user)
+        address = Address.objects.create(user=self.user, full_name="Buyer Name", phone="+989123456786", province="Tehran", city="Tehran", street="Main street", postal_code="1234567890")
+        self.post({"offer_id": self.offer.pk, "quantity": 2})
+        response = self.client.post("/api/v1/commerce/checkout/", json.dumps({"address_id": address.pk, "idempotency_key": str(uuid4())}), content_type="application/json")
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["error"], "shipping_unavailable")
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.reserved_quantity, 1)
+        self.assertEqual(CartLine.objects.count(), 1)
+        self.assertEqual(Order.objects.count(), 0)
