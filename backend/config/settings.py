@@ -14,6 +14,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "accounts",
 ]
 
 MIDDLEWARE = [
@@ -39,6 +40,7 @@ TEMPLATES = [{
     ]},
 }]
 WSGI_APPLICATION = "config.wsgi.application"
+AUTH_USER_MODEL = "accounts.User"
 
 DATABASES = {"default": {
     "ENGINE": "django.db.backends.postgresql",
