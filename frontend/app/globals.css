@@ -74,3 +74,6 @@ p { color: #475467; max-width: 62ch; }
 .offer-card { display: flex; justify-content: space-between; gap: 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px 22px; }
 .offer-card b { color: #b91c1c; }
 .catalog-note { margin-top: 24px; }
+.product-thumb { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 8px; background: #f6f7f9; }
+.product-gallery { display: flex; gap: 12px; overflow-x: auto; margin: 18px 0 24px; }
+.product-gallery img { width: min(70vw, 340px); height: 300px; object-fit: contain; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }

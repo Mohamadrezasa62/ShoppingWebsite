@@ -61,6 +61,25 @@ class Product(models.Model):
         return self.title
 
 
+class ProductMedia(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="media")
+    image = models.ImageField(upload_to="products/%Y/%m/")
+    alt_text = models.CharField(max_length=240)
+    position = models.PositiveSmallIntegerField(default=0)
+    is_approved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("position", "id")
+
+    def clean(self):
+        if self.image and self.image.size > 5 * 1024 * 1024:
+            raise ValidationError({"image": "Image exceeds 5 MB"})
+
+    def __str__(self):
+        return f"{self.product}: {self.alt_text}"
+
+
 class Variant(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="variants")
     sku = models.CharField(max_length=80, unique=True)

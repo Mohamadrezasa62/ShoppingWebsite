@@ -1,8 +1,13 @@
-from django.test import TestCase
+from io import BytesIO
+from tempfile import TemporaryDirectory
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
+from PIL import Image
 
 from sellers.models import Seller
 
-from .models import Brand, Category, Offer, Product, Variant
+from .models import Brand, Category, Offer, Product, ProductMedia, Variant
 
 
 class PublicCatalogTests(TestCase):
@@ -52,3 +57,31 @@ class PublicCatalogTests(TestCase):
         self.category.save()
         self.assertEqual(self.client.get("/api/v1/catalog/categories/").json()["categories"], [])
         self.assertEqual(self.client.get("/api/v1/catalog/products/").json()["products"], [])
+
+    def test_brand_and_price_filters_use_eligible_offer_price(self):
+        self.assertEqual(self.client.get("/api/v1/catalog/brands/").json()["brands"], [{"name": "Example", "slug": "example"}])
+        result = self.client.get("/api/v1/catalog/products/", {"brand": "example", "min_price": "95000"}).json()
+        self.assertEqual(result["products"][0]["starting_price_toman"], 100000)
+        self.assertEqual(self.client.get("/api/v1/catalog/products/", {"max_price": "80000"}).json()["products"], [])
+        self.assertEqual(self.client.get("/api/v1/catalog/products/", {"min_price": "100", "max_price": "10"}).status_code, 400)
+        self.brand.is_active = False
+        self.brand.save()
+        self.assertEqual(self.client.get("/api/v1/catalog/brands/").json()["brands"], [])
+        self.assertEqual(self.client.get("/api/v1/catalog/products/").json()["products"], [])
+
+    def test_only_approved_images_are_public(self):
+        image_bytes = BytesIO()
+        Image.new("RGB", (8, 8), "red").save(image_bytes, format="PNG")
+        with TemporaryDirectory() as media_root, override_settings(MEDIA_ROOT=media_root):
+            approved = ProductMedia.objects.create(product=self.product, image=SimpleUploadedFile("approved.png", image_bytes.getvalue(), content_type="image/png"), alt_text="Front view", is_approved=True)
+            pending = ProductMedia.objects.create(product=self.product, image=SimpleUploadedFile("pending.png", image_bytes.getvalue(), content_type="image/png"), alt_text="Pending view")
+            listing = self.client.get("/api/v1/catalog/products/").json()["products"][0]
+            self.assertEqual(listing["image"]["alt"], "Front view")
+            detail = self.client.get("/api/v1/catalog/products/example-phone/").json()["product"]
+            self.assertEqual(len(detail["images"]), 1)
+            self.assertEqual(detail["images"][0]["url"], f"/api/v1/catalog/media/{approved.pk}/")
+            image_response = self.client.get(detail["images"][0]["url"])
+            self.assertEqual(image_response.status_code, 200)
+            self.assertEqual(b"".join(image_response.streaming_content), image_bytes.getvalue())
+            self.assertEqual(self.client.get(f"/api/v1/catalog/media/{pending.pk}/").status_code, 404)
+            self.assertEqual(self.client.get(pending.image.url).status_code, 404)

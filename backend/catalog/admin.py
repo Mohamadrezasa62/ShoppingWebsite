@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Brand, Category, Offer, Product, Variant
+from .models import Brand, Category, Offer, Product, ProductMedia, Variant
 
 
 @admin.register(Category)
@@ -22,6 +22,13 @@ class ProductAdmin(admin.ModelAdmin):
     list_display = ("title", "category", "brand", "status", "updated_at")
     list_filter = ("status", "category")
     search_fields = ("title", "slug")
+
+
+@admin.register(ProductMedia)
+class ProductMediaAdmin(admin.ModelAdmin):
+    list_display = ("product", "alt_text", "position", "is_approved")
+    list_filter = ("is_approved",)
+    search_fields = ("product__title", "alt_text")
 
 
 @admin.register(Variant)
