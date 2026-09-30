@@ -13,6 +13,11 @@ class Seller(models.Model):
     name = models.CharField(max_length=200)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.APPLIED)
     created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_sellers"
+    )
+    review_note = models.TextField(blank=True)
 
     def __str__(self):
         return self.name

@@ -8,7 +8,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .phones import normalize_code, normalize_iran_mobile
 from .roles import STAFF_ROLES
-from .services import SmsUnavailable, TooManyRequests, request_code, verify_code
+from .services import SmsUnavailable, TooManyRequests, consume_code, request_code, verify_code
 
 
 def _body(request):
@@ -56,11 +56,18 @@ def verify_phone_code(request):
     code = normalize_code(body.get("code", "")) if body else ""
     if not phone or not (code.isascii() and code.isdecimal() and len(code) == 6):
         return JsonResponse({"error": "invalid_request"}, status=400)
-    if not verify_code(phone, code):
+    if not verify_code(phone, code, consume=False):
         return JsonResponse({"error": "invalid_code"}, status=400)
-    user, _created = get_user_model().objects.get_or_create(phone=phone, defaults={"password": make_password(None)})
+    user = get_user_model().objects.filter(phone=phone).first()
+    if user and user.is_staff:
+        password = body.get("password", "")
+        if not isinstance(password, str) or not user.check_password(password):
+            return JsonResponse({"error": "invalid_staff_credentials"}, status=400)
+    if user is None:
+        user, _created = get_user_model().objects.get_or_create(phone=phone, defaults={"password": make_password(None)})
     if not user.is_active:
         return JsonResponse({"error": "account_unavailable"}, status=403)
+    consume_code(phone)
     login(request, user, backend="django.contrib.auth.backends.ModelBackend")
     return JsonResponse({"status": "authenticated"})
 
@@ -86,5 +93,9 @@ def me(request):
         "can_access_admin": request.user.is_staff and (
             request.user.is_superuser or request.user.groups.filter(name__in=STAFF_ROLES).exists()
         ),
+        "staff_roles": sorted(
+            request.user.groups.filter(name__in=STAFF_ROLES).values_list("name", flat=True)
+        ),
+        "is_superuser": request.user.is_superuser,
         "seller_memberships": memberships,
     })

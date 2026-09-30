@@ -56,7 +56,7 @@ def request_code(phone):
         raise
 
 
-def verify_code(phone, code):
+def verify_code(phone, code, *, consume=True):
     record = cache.get(f"otp:code:{phone}")
     if not record:
         return False
@@ -66,7 +66,15 @@ def verify_code(phone, code):
         return False
     if not compare_digest(record["digest"], _code_digest(phone, code)):
         return False
-    cache.delete(f"otp:code:{phone}")
-    cache.delete(attempts_key)
-    cache.delete(f"otp:cooldown:{phone}")
+    if consume:
+        consume_code(phone)
     return True
+
+
+def consume_code(phone):
+    record = cache.get(f"otp:code:{phone}")
+    if not record:
+        return
+    cache.delete(f"otp:code:{phone}")
+    cache.delete(f"otp:attempts:{phone}:{record['nonce']}")
+    cache.delete(f"otp:cooldown:{phone}")

@@ -8,6 +8,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [step, setStep] = useState<"phone" | "code">("phone");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,9 +20,10 @@ export default function LoginPage() {
     try {
       const response = step === "phone"
         ? await apiPost("/api/v1/auth/request-code/", { phone })
-        : await apiPost("/api/v1/auth/verify-code/", { phone, code });
+        : await apiPost("/api/v1/auth/verify-code/", { phone, code, password });
       if (!response.ok) {
-        setMessage(response.status === 429 ? "کمی بعد دوباره تلاش کنید." : "درخواست انجام نشد. اطلاعات را بررسی کنید.");
+        const result = await response.json();
+        setMessage(response.status === 429 ? "کمی بعد دوباره تلاش کنید." : result.error === "invalid_staff_credentials" ? "کد یا رمز عبور کارکنان نادرست است." : "درخواست انجام نشد. اطلاعات را بررسی کنید.");
       } else if (step === "phone") {
         setStep("code");
         setMessage("کد ورود ارسال شد.");
@@ -46,6 +48,8 @@ export default function LoginPage() {
         {step === "code" && <>
           <label htmlFor="code">کد شش‌رقمی</label>
           <input id="code" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={code} onChange={(event) => setCode(event.target.value)} />
+          <label htmlFor="staff-password">رمز عبور کارکنان (در صورت نیاز)</label>
+          <input id="staff-password" name="staff-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} />
         </>}
         <button disabled={busy} type="submit">{step === "phone" ? "دریافت کد" : "تأیید و ورود"}</button>
         {message && <p role="status">{message}</p>}

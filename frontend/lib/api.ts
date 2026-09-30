@@ -6,12 +6,16 @@ export function csrfToken(): string | undefined {
     ?.split("=")[1];
 }
 
-export async function apiPost(path: string, body: Record<string, string>) {
+export async function apiRequest(method: "POST" | "PATCH", path: string, body: unknown) {
   await fetch("/api/v1/auth/csrf/", { credentials: "same-origin" });
   return fetch(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() ?? "" },
     credentials: "same-origin",
     body: JSON.stringify(body),
   });
+}
+
+export function apiPost(path: string, body: Record<string, string>) {
+  return apiRequest("POST", path, body);
 }

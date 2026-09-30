@@ -67,6 +67,22 @@ class PhoneAuthenticationTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    @patch("accounts.services.deliver_code")
+    def test_staff_needs_password_as_second_factor(self, deliver_code):
+        staff = get_user_model().objects.create_user("09123456784", "staff-password", is_staff=True)
+        self.client.post(
+            "/api/v1/auth/request-code/", json.dumps({"phone": staff.phone}), content_type="application/json"
+        )
+        code = deliver_code.call_args.args[1]
+        path = "/api/v1/auth/verify-code/"
+        without_password = self.client.post(path, json.dumps({"phone": staff.phone, "code": code}), content_type="application/json")
+        self.assertEqual(without_password.status_code, 400)
+        with_password = self.client.post(
+            path, json.dumps({"phone": staff.phone, "code": code, "password": "staff-password"}), content_type="application/json"
+        )
+        self.assertEqual(with_password.status_code, 200)
+        self.assertEqual(self.client.get("/api/v1/auth/me/").json()["phone"], staff.phone)
+
     @override_settings(SMS_BACKEND="disabled")
     def test_no_sms_provider_does_not_issue_code(self):
         response = self.client.post(

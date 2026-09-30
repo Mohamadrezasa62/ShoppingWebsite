@@ -1,5 +1,5 @@
-import { PortalAccess } from "@/components/portal-access";
+import { AdminWorkspace } from "@/components/admin-workspace";
 
 export default function AdminPanelPage() {
-  return <PortalAccess title="پنل مدیریت" endpoint="/api/v1/admin/overview/" />;
+  return <AdminWorkspace />;
 }
