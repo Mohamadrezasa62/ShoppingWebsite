@@ -52,7 +52,7 @@ jobs:
       - run: python backend/manage.py makemigrations --check --dry-run
       - run: python backend/manage.py migrate
       - run: python backend/manage.py seed_roles
-      - run: python backend/manage.py test accounts catalog operations
+      - run: python backend/manage.py test accounts catalog operations sellers
 
   frontend:
     runs-on: ubuntu-latest

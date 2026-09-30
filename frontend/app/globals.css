@@ -84,3 +84,7 @@ p { color: #475467; max-width: 62ch; }
 .variant-options { display: flex; flex-wrap: wrap; gap: 10px; }
 .variant-options button { background: #fff; border: 1px solid #98a2b3; border-radius: 9px; padding: 10px 16px; font: inherit; cursor: pointer; }
 .variant-options button[aria-pressed="true"] { border: 2px solid #b91c1c; color: #991b1b; font-weight: 700; }
+.seller-store-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.seller-store-list button { border: 1px solid #98a2b3; background: #fff; border-radius: 9px; padding: 10px 14px; font: inherit; cursor: pointer; }
+.seller-store-list button.selected { border: 2px solid #b91c1c; color: #991b1b; font-weight: 700; }
+.seller-section { margin-top: 18px; }

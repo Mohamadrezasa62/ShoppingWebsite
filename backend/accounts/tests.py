@@ -112,16 +112,18 @@ class PortalPermissionTests(TestCase):
         self.staff.groups.add(Group.objects.create(name="finance_operator"))
         self.assertEqual(self.client.get("/api/v1/admin/finance/").status_code, 200)
 
-    def test_seller_requires_approved_membership(self):
+    def test_seller_store_status_visible_but_operations_require_approval(self):
         self.client.force_login(self.buyer)
-        self.assertEqual(self.client.get("/api/v1/seller/stores/").status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/seller/stores/").json()["stores"], [])
         self.client.force_login(self.seller_user)
         response = self.client.get("/api/v1/seller/stores/")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["stores"][0]["id"], self.seller.id)
+        self.assertEqual(self.client.get(f"/api/v1/seller/stores/{self.seller.id}/offers/").status_code, 200)
         self.seller.status = Seller.Status.SUSPENDED
         self.seller.save()
-        self.assertEqual(self.client.get("/api/v1/seller/stores/").status_code, 403)
+        self.assertEqual(self.client.get("/api/v1/seller/stores/").json()["stores"][0]["status"], Seller.Status.SUSPENDED)
+        self.assertEqual(self.client.get(f"/api/v1/seller/stores/{self.seller.id}/offers/").status_code, 403)
 
     def test_bootstrap_admin_can_open_user_creation(self):
         administrator = get_user_model().objects.create_superuser("09123456786", "long-development-password")

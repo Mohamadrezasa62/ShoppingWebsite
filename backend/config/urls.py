@@ -5,7 +5,6 @@ from django.http import JsonResponse
 from django.urls import include, path
 
 from accounts import staff_views
-from sellers import views as seller_views
 
 
 def health(_request):
@@ -32,5 +31,5 @@ urlpatterns = [
     path("api/v1/operations/", include("operations.urls")),
     path("api/v1/admin/overview/", staff_views.overview),
     path("api/v1/admin/finance/", staff_views.finance_overview),
-    path("api/v1/seller/stores/", seller_views.my_stores),
+    path("api/v1/seller/", include("sellers.urls")),
 ]

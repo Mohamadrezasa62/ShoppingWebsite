@@ -4,7 +4,7 @@ A Persian, right-to-left multi-seller marketplace for Iran. Product prices are d
 
 ## Project status
 
-Planning is approved. Milestones 1–4 have implementation in progress. No milestone has passed its completion checks yet.
+Planning is approved. Milestones 1–5 have implementation in progress. No milestone has passed its completion checks yet.
 
 See [the detailed milestone plan](docs/MILESTONES.md) for scope, order, dependencies, and completion checks.
 
@@ -21,3 +21,5 @@ To start locally, copy `.env.example` to `.env`, replace both placeholder secret
 The API container applies migrations and creates staff role groups on startup. To create the first administrator for local development, run `docker compose exec api python manage.py createsuperuser`, then use `http://localhost:8000/admin/`. Use Django admin to set a password for any account before assigning it a staff role in the custom panel. See [administrator progress and access](docs/admin/ADMIN_PANEL.md). Docker Engine must be running. The stack has not yet been executed end to end on this workstation because its Docker daemon is unavailable.
 
 The public catalog is at `/products/`. To populate it for development, use Django admin to create a category, brand, published product, active variant, approved seller, and active offer with positive price and stock. A product can have offers from several sellers. Search suggestions, category and brand filtering, category-specific variant facets, price range and sorting, approved product images, variant selection, and seller offer comparison are available. Configure facet keys and choices in Django admin; variant attributes use those same keys and values. Product images can be uploaded in Django admin; the public image route checks approval and product availability. Production media storage and scalable delivery still need configuration. Cart, checkout, and location-based delivery estimates remain future work.
+
+The seller portal is at `/seller-panel/`. A signed-in user can apply for a store; a marketplace manager reviews it in the admin panel. Once approved, the seller can find a published catalog variant, add an offer, and edit its price, stock, warranty, and active or paused state. Seller records and offers are restricted by membership in the API. Store identity verification, bulk import, order processing, and settlement reporting remain to be built.
