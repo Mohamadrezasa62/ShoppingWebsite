@@ -50,3 +50,27 @@ p { color: #475467; max-width: 62ch; }
 .admin-secondary { border: 1px solid #98a2b3; border-radius: 8px; background: #fff; padding: 6px 12px; cursor: pointer; }
 .admin-alert { background: #fff7ed; border: 1px solid #fdba74; border-radius: 8px; padding: 12px; }
 @media (max-width: 760px) { .admin-layout { display: block; } .admin-nav { flex-direction: row; overflow-x: auto; border-inline-end: 0; border-bottom: 1px solid #e5e7eb; padding: 10px; } .admin-nav button { white-space: nowrap; } .admin-main { padding: 14px; } .admin-header { gap: 10px; flex-wrap: wrap; } }
+.catalog-link { display: inline-block; margin-top: 20px; background: #b91c1c; color: #fff; border-radius: 10px; padding: 10px 20px; text-decoration: none; font-weight: 700; }
+.catalog-shell { min-height: 100vh; }
+.catalog-main { max-width: 1120px; margin: auto; padding: 28px 24px 80px; }
+.catalog-main h1 { margin-top: 0; }
+.catalog-main h2 { margin-top: 36px; }
+.catalog-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px; margin-bottom: 24px; }
+.catalog-filters label { display: grid; gap: 4px; flex: 1 1 180px; }
+.catalog-filters input, .catalog-filters select { min-height: 44px; border: 1px solid #98a2b3; border-radius: 8px; padding: 8px; font: inherit; }
+.catalog-filters button, .catalog-pages button { min-height: 44px; border: 0; border-radius: 8px; background: #b91c1c; color: #fff; padding: 8px 16px; font: inherit; cursor: pointer; }
+.catalog-pages button:disabled { opacity: .45; cursor: default; }
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.product-card { min-height: 160px; display: flex; flex-direction: column; gap: 10px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 20px; color: inherit; text-decoration: none; }
+.product-card span { color: #667085; font-size: .9rem; }
+.product-card strong { font-size: 1.1rem; }
+.product-card b { margin-top: auto; color: #b91c1c; }
+.catalog-pages { display: flex; justify-content: center; align-items: center; gap: 18px; margin-top: 24px; }
+.product-specs { background: #fff; border-radius: 14px; padding: 12px 20px; }
+.product-specs div { display: flex; gap: 20px; border-bottom: 1px solid #e5e7eb; padding: 8px 0; }
+.product-specs dt { min-width: 120px; color: #667085; }
+.product-specs dd { margin: 0; }
+.offer-list { display: grid; gap: 12px; }
+.offer-card { display: flex; justify-content: space-between; gap: 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 18px 22px; }
+.offer-card b { color: #b91c1c; }
+.catalog-note { margin-top: 24px; }
