@@ -34,4 +34,3 @@ urlpatterns = [
     path("api/v1/admin/finance/", staff_views.finance_overview),
     path("api/v1/seller/stores/", seller_views.my_stores),
 ]
-
