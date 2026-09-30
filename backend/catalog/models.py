@@ -28,6 +28,30 @@ class Category(models.Model):
         return self.name
 
 
+class CategoryFacet(models.Model):
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="facets")
+    key = models.SlugField(max_length=80, allow_unicode=True)
+    label = models.CharField(max_length=120)
+    choices = models.JSONField(default=list)
+    position = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("position", "id")
+        constraints = [models.UniqueConstraint(fields=["category", "key"], name="unique_category_facet_key")]
+
+    def clean(self):
+        if "__" in self.key:
+            raise ValidationError({"key": "Facet keys cannot contain consecutive underscores"})
+        if not isinstance(self.choices, list) or not self.choices or not all(
+            isinstance(value, str) and value.strip() and len(value) <= 100 for value in self.choices
+        ) or len(set(self.choices)) != len(self.choices):
+            raise ValidationError({"choices": "Choices must be unique, non-empty strings"})
+
+    def __str__(self):
+        return f"{self.category}: {self.label}"
+
+
 class Brand(models.Model):
     name = models.CharField(max_length=160, unique=True)
     slug = models.SlugField(max_length=160, unique=True, allow_unicode=True)

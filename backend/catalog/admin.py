@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Brand, Category, Offer, Product, ProductMedia, Variant
+from .models import Brand, Category, CategoryFacet, Offer, Product, ProductMedia, Variant
 
 
 @admin.register(Category)
@@ -9,6 +9,13 @@ class CategoryAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name", "slug")
     prepopulated_fields = {"slug": ("name",)}
+
+
+@admin.register(CategoryFacet)
+class CategoryFacetAdmin(admin.ModelAdmin):
+    list_display = ("category", "label", "key", "position", "is_active")
+    list_filter = ("category", "is_active")
+    search_fields = ("label", "key")
 
 
 @admin.register(Brand)

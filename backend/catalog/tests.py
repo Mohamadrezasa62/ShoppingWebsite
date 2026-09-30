@@ -7,7 +7,7 @@ from PIL import Image
 
 from sellers.models import Seller
 
-from .models import Brand, Category, Offer, Product, ProductMedia, Variant
+from .models import Brand, Category, CategoryFacet, Offer, Product, ProductMedia, Variant
 
 
 class PublicCatalogTests(TestCase):
@@ -85,3 +85,19 @@ class PublicCatalogTests(TestCase):
             self.assertEqual(b"".join(image_response.streaming_content), image_bytes.getvalue())
             self.assertEqual(self.client.get(f"/api/v1/catalog/media/{pending.pk}/").status_code, 404)
             self.assertEqual(self.client.get(pending.image.url).status_code, 404)
+
+    def test_category_facet_filters_variants_and_offer_prices(self):
+        CategoryFacet.objects.create(category=self.category, key="color", label="Color", choices=["black", "white"])
+        white = Variant.objects.create(product=self.product, sku="phone-white", attributes={"color": "white"})
+        Offer.objects.create(variant=white, seller=self.seller_a, price_toman=80000, status=Offer.Status.ACTIVE, available_quantity=1)
+        self.assertEqual(self.client.get("/api/v1/catalog/facets/", {"category": "mobile"}).json()["facets"][0]["choices"], ["black", "white"])
+        response = self.client.get("/api/v1/catalog/products/", {"category": "mobile", "facet_color": "black"})
+        self.assertEqual(response.json()["products"][0]["starting_price_toman"], 90000)
+        self.assertEqual(self.client.get("/api/v1/catalog/products/", {"category": "mobile", "facet_color": "green"}).status_code, 400)
+        self.assertEqual(self.client.get("/api/v1/catalog/products/", {"facet_color": "black"}).status_code, 400)
+
+    def test_suggestions_exclude_unavailable_products(self):
+        self.assertEqual(self.client.get("/api/v1/catalog/suggestions/", {"q": "ph"}).json()["suggestions"], [{"title": "Example phone", "slug": "example-phone"}])
+        self.product.status = Product.Status.DRAFT
+        self.product.save()
+        self.assertEqual(self.client.get("/api/v1/catalog/suggestions/", {"q": "ph"}).json()["suggestions"], [])

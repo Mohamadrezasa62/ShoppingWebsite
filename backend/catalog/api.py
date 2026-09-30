@@ -5,7 +5,7 @@ from django.views.decorators.http import require_GET
 
 from sellers.models import Seller
 
-from .models import Brand, Category, Offer, Product, ProductMedia
+from .models import Brand, Category, CategoryFacet, Offer, Product, ProductMedia
 
 
 def visible_offers():
@@ -29,6 +29,27 @@ def categories(_request):
 def brands(_request):
     rows = Brand.objects.filter(is_active=True, products__pk__in=visible_offers().values("variant__product_id")).distinct().order_by("name")
     return JsonResponse({"brands": [{"name": row.name, "slug": row.slug} for row in rows]})
+
+
+@require_GET
+def facets(request):
+    category_slug = request.GET.get("category", "").strip()[:160]
+    if not category_slug:
+        return JsonResponse({"facets": []})
+    category = get_object_or_404(Category, slug=category_slug, is_active=True)
+    rows = CategoryFacet.objects.filter(category=category, is_active=True)
+    return JsonResponse({"facets": [{"key": row.key, "label": row.label, "choices": row.choices} for row in rows]})
+
+
+@require_GET
+def suggestions(request):
+    query = request.GET.get("q", "").strip()[:120]
+    if len(query) < 2:
+        return JsonResponse({"suggestions": []})
+    rows = Product.objects.filter(
+        pk__in=visible_offers().values("variant__product_id"), title__icontains=query,
+    ).order_by("title", "id")[:8]
+    return JsonResponse({"suggestions": [{"title": row.title, "slug": row.slug} for row in rows]})
 
 
 def _image_data(media):
@@ -62,6 +83,17 @@ def products(request):
     except ValueError:
         page = 1
     eligible_offers = visible_offers()
+    if any(key.startswith("facet_") for key in request.GET) and not category_slug:
+        return JsonResponse({"error": "category_required_for_facets"}, status=400)
+    if category_slug:
+        configured_facets = {row.key: row for row in CategoryFacet.objects.filter(category__slug=category_slug, category__is_active=True, is_active=True)}
+        for key, value in request.GET.items():
+            if not key.startswith("facet_"):
+                continue
+            facet = configured_facets.get(key[6:])
+            if facet is None or value not in facet.choices:
+                return JsonResponse({"error": "invalid_facet_filter"}, status=400)
+            eligible_offers = eligible_offers.filter(**{f"variant__attributes__{facet.key}": value})
     if min_price:
         eligible_offers = eligible_offers.filter(price_toman__gte=min_price)
     if max_price:

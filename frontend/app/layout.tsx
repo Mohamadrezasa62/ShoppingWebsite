@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ShoppingWebsite",
-  description: "بازارگاه چندفروشنده‌ای در حال ساخت",
+  description: "بازارگاه چندفروشنده‌ای با جست‌وجوی محصول و مقایسهٔ پیشنهاد فروشندگان",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
