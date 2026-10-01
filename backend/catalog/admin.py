@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Brand, Category, CategoryFacet, Offer, Product, ProductMedia, Variant
+from .models import Brand, Category, CategoryFacet, Offer, Product, ProductMedia, ProductReview, Variant, WishlistItem
 
 
 @admin.register(Category)
@@ -48,4 +48,31 @@ class VariantAdmin(admin.ModelAdmin):
 class OfferAdmin(admin.ModelAdmin):
     list_display = ("variant", "seller", "price_toman", "available_quantity", "reserved_quantity", "status")
     list_filter = ("status", "fulfillment")
+
+
+@admin.register(ProductReview)
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = ("product", "user", "rating", "status", "verified_purchase", "created_at")
+    list_filter = ("status", "rating")
+    readonly_fields = ("user", "product", "rating", "title", "body", "verified_purchase", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(WishlistItem)
+class WishlistItemAdmin(admin.ModelAdmin):
+    list_display = ("user", "product", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
     search_fields = ("variant__sku", "seller__name")

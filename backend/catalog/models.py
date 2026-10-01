@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.conf import settings
 from django.db import models
 
 
@@ -156,3 +157,34 @@ class Offer(models.Model):
 
     def __str__(self):
         return f"{self.seller} / {self.variant}"
+
+
+class WishlistItem(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="wishlist_items")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="wishlist_items")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["user", "product"], name="unique_wishlist_product")]
+
+
+class ProductReview(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        PUBLISHED = "published", "Published"
+        REJECTED = "rejected", "Rejected"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="product_reviews")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="reviews")
+    rating = models.PositiveSmallIntegerField()
+    title = models.CharField(max_length=160)
+    body = models.TextField()
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
+    verified_purchase = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "product"], name="unique_user_product_review"),
+            models.CheckConstraint(condition=models.Q(rating__gte=1, rating__lte=5), name="review_rating_one_to_five"),
+        ]
