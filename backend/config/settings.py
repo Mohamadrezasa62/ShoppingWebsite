@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "sellers",
     "catalog",
     "commerce",
+    "payments",
     "operations",
 ]
 
