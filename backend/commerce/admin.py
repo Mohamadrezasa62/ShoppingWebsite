@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Address, Cart, CartLine, Order, OrderDelivery, OrderLine, ShippingRule
+from .models import Address, Cart, CartLine, Order, OrderDelivery, OrderLine, ReturnCase, ShippingRule
 
 
 @admin.register(Cart)
@@ -46,9 +46,16 @@ class OrderAdmin(ReadOnlyOrderAdmin):
 
 @admin.register(OrderDelivery)
 class OrderDeliveryAdmin(ReadOnlyOrderAdmin):
-    list_display = ("order", "seller_name", "fulfillment", "shipping_fee_toman")
+    list_display = ("order", "seller_name", "fulfillment", "status", "tracking_code", "shipping_fee_toman")
+    list_filter = ("status", "fulfillment")
 
 
 @admin.register(OrderLine)
 class OrderLineAdmin(ReadOnlyOrderAdmin):
     list_display = ("delivery", "product_title", "quantity", "line_total_toman")
+
+
+@admin.register(ReturnCase)
+class ReturnCaseAdmin(ReadOnlyOrderAdmin):
+    list_display = ("id", "delivery", "requested_by", "status", "requested_amount_toman", "created_at")
+    list_filter = ("status",)

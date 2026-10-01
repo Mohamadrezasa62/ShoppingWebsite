@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 
 from catalog.models import Offer
@@ -71,3 +72,31 @@ def record_verified_capture(attempt_id: int, capture: VerifiedCapture) -> bool:
         attempt.status = PaymentAttempt.Status.CAPTURED if payable else PaymentAttempt.Status.REVIEW_REQUIRED
         attempt.save(update_fields=["provider_reference", "status", "updated_at"])
         return payable
+
+
+def record_verified_refund(attempt_id: int, provider_refund_reference: str, amount_toman: int) -> LedgerEntry:
+    """Record a provider-confirmed refund without allowing more than captured."""
+    if not provider_refund_reference or amount_toman <= 0:
+        raise ValueError("Invalid verified refund")
+    with transaction.atomic():
+        order_id = PaymentAttempt.objects.values_list("order_id", flat=True).get(pk=attempt_id)
+        order = Order.objects.select_for_update().get(pk=order_id)
+        attempt = PaymentAttempt.objects.select_for_update().get(pk=attempt_id)
+        event_key = f"refund:{attempt.provider}:{provider_refund_reference}"
+        existing = LedgerEntry.objects.filter(event_key=event_key).first()
+        if existing:
+            if existing.attempt_id != attempt_id or existing.amount_toman != -amount_toman:
+                raise ValueError("Conflicting refund reference")
+            return existing
+        captured = LedgerEntry.objects.filter(
+            attempt=attempt, kind=LedgerEntry.Kind.PAYMENT_CAPTURE,
+        ).aggregate(total=Sum("amount_toman"))["total"] or 0
+        refunded = -(LedgerEntry.objects.filter(
+            attempt=attempt, kind=LedgerEntry.Kind.PAYMENT_REFUND,
+        ).aggregate(total=Sum("amount_toman"))["total"] or 0)
+        if captured == 0 or refunded + amount_toman > captured:
+            raise ValueError("Refund exceeds captured payment")
+        return LedgerEntry.objects.create(
+            order=order, attempt=attempt, kind=LedgerEntry.Kind.PAYMENT_REFUND,
+            amount_toman=-amount_toman, event_key=event_key,
+        )

@@ -69,6 +69,13 @@ class Order(models.Model):
 
 
 class OrderDelivery(models.Model):
+    class Status(models.TextChoices):
+        AWAITING_FULFILLMENT = "awaiting_fulfillment", "Awaiting fulfillment"
+        PACKING = "packing", "Packing"
+        SHIPPED = "shipped", "Shipped"
+        DELIVERED = "delivered", "Delivered"
+        CANCELLED = "cancelled", "Cancelled"
+
     order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="deliveries")
     seller = models.ForeignKey("sellers.Seller", on_delete=models.PROTECT)
     seller_name = models.CharField(max_length=200)
@@ -76,6 +83,28 @@ class OrderDelivery(models.Model):
     shipping_fee_toman = models.PositiveBigIntegerField()
     min_days = models.PositiveSmallIntegerField()
     max_days = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=24, choices=Status.choices, default=Status.AWAITING_FULFILLMENT)
+    tracking_code = models.CharField(max_length=120, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+
+class ReturnCase(models.Model):
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "Requested"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        RECEIVED = "received", "Received"
+        REFUND_PENDING = "refund_pending", "Refund pending"
+        REFUNDED = "refunded", "Refunded"
+
+    delivery = models.ForeignKey(OrderDelivery, on_delete=models.PROTECT, related_name="return_cases")
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.REQUESTED)
+    reason = models.TextField()
+    requested_amount_toman = models.PositiveBigIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
 
 class OrderLine(models.Model):

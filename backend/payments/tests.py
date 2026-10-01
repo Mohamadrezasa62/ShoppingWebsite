@@ -10,7 +10,7 @@ from commerce.models import Order, OrderDelivery, OrderLine
 from sellers.models import Seller
 
 from .models import LedgerEntry, PaymentAttempt
-from .services import VerifiedCapture, record_verified_capture
+from .services import VerifiedCapture, record_verified_capture, record_verified_refund
 
 
 class PaymentCaptureTests(TestCase):
@@ -81,3 +81,13 @@ class PaymentCaptureTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["available"], [])
         self.assertTrue(all(not method["enabled"] for method in response.json()["planned"]))
+
+    def test_verified_partial_refunds_cannot_exceed_capture(self):
+        record_verified_capture(self.attempt.pk, VerifiedCapture("paid-1", 25000, "TOMAN"))
+        first = record_verified_refund(self.attempt.pk, "refund-1", 10000)
+        self.assertEqual(first.pk, record_verified_refund(self.attempt.pk, "refund-1", 10000).pk)
+        with self.assertRaises(ValueError):
+            record_verified_refund(self.attempt.pk, "refund-2", 16000)
+        second = record_verified_refund(self.attempt.pk, "refund-2", 15000)
+        self.assertEqual((first.amount_toman, second.amount_toman), (-10000, -15000))
+        self.assertEqual(LedgerEntry.objects.count(), 3)

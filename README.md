@@ -4,7 +4,7 @@ A Persian, right-to-left multi-seller marketplace for Iran. Product prices are d
 
 ## Project status
 
-Planning is approved. Milestones 1–7 have implementation in progress. No milestone has passed its completion checks yet.
+Planning is approved. Milestones 1–8 have implementation in progress. No milestone has passed its completion checks yet.
 
 See [the detailed milestone plan](docs/MILESTONES.md) for scope, order, dependencies, and completion checks.
 
