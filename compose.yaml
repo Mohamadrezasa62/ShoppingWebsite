@@ -7,6 +7,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5069}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -18,6 +20,8 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
+    ports:
+      - "${REDIS_HOST_PORT:-5070}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -27,12 +31,12 @@ services:
   api:
     build: ./backend
     env_file: .env
-    command: ["sh", "-c", "python manage.py migrate && python manage.py seed_roles && python manage.py runserver 0.0.0.0:8000"]
+    command: ["sh", "-c", "python manage.py migrate && python manage.py seed_roles && gunicorn config.wsgi:application --bind 0.0.0.0:8000"]
     volumes:
       - ./backend:/app
       - media_data:/app/media
     ports:
-      - "8000:8000"
+      - "${API_HOST_PORT:-5068}:8000"
     depends_on:
       db:
         condition: service_healthy
@@ -68,8 +72,9 @@ services:
     build: ./frontend
     environment:
       API_INTERNAL_URL: http://api:8000
+      PORT: 3000
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-5067}:3000"
     depends_on:
       api:
         condition: service_started
