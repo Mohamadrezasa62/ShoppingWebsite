@@ -1,0 +1,31 @@
+{
+    email {$ACME_EMAIL}
+}
+{$SITE_HOST} {
+    encode zstd gzip
+    header Strict-Transport-Security "max-age=3600"
+    request_body {
+        max_size 10MB
+    }
+    handle /static/* {
+        uri strip_prefix /static
+        root * /srv/static
+        file_server
+    }
+    # Raw upload paths are never public. Catalog media goes through visibility APIs.
+    handle /media/* {
+        respond 404
+    }
+    @backend path /api/* /admin/* /health/ /ready/
+    handle @backend {
+        reverse_proxy api:8000 {
+            header_up Host {$SITE_HOST}
+            header_up X-Forwarded-Proto https
+            header_up -X-Forwarded-For
+            header_up X-Real-IP {remote_host}
+        }
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

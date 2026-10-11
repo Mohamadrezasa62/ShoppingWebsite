@@ -1,0 +1,8 @@
+import { cache } from "react";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
+import { internalHeaders, internalApi, siteUrl } from "@/lib/site";
+type Collection = {title:string; description:string; products:{id:number; title:string; slug:string; price_toman:number; image:{url:string; alt:string}|null}[]};
+const load = cache(async(slug:string):Promise<Collection|null> => {const r=await fetch(`${internalApi}/api/v1/catalog/collections/${encodeURIComponent(slug)}/`,{cache:"no-store",headers:internalHeaders});if(r.status===404)return null;if(!r.ok)throw new Error("Collection unavailable");return(await r.json()).collection;});
+export async function generateMetadata({params}:{params:Promise<{slug:string}>}):Promise<Metadata>{const {slug}=await params;const row=await load(slug);return row?{title:row.title,description:row.description.slice(0,160),alternates:{canonical:`${siteUrl}/collections/${encodeURIComponent(slug)}/`}}:{robots:{index:false}};}
+export default async function CollectionPage({params}:{params:Promise<{slug:string}>}){const row=await load((await params).slug);if(!row)notFound();return <main className="catalog-main"><a href="/collections/">مجموعه‌های منتخب</a><h1>{row.title}</h1><p>{row.description}</p><ul className="admin-list">{row.products.map(p=><li key={p.id}><a href={`/products/${encodeURIComponent(p.slug)}/`}>{p.image&&<img src={p.image.url} alt={p.image.alt} width={160} height={160} style={{objectFit:"contain"}}/>}<h2>{p.title}</h2></a><p>{p.price_toman.toLocaleString("fa-IR")} تومان</p></li>)}</ul>{!row.products.length&&<p>در حال حاضر محصول موجودی در این مجموعه نیست.</p>}</main>;}

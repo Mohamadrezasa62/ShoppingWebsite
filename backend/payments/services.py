@@ -4,8 +4,10 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from catalog.models import Offer
+from catalog.inventory import can_consume, finish_line
 from commerce.models import Order, OrderLine
 
+from operations.events import emit
 from .models import LedgerEntry, PaymentAttempt
 
 
@@ -58,17 +60,16 @@ def record_verified_capture(attempt_id: int, capture: VerifiedCapture) -> bool:
             ).order_by("pk")}
             for line in lines:
                 offer = offers[line.offer_id]
-                if offer.reserved_quantity < line.quantity or offer.available_quantity < line.quantity:
+                if not can_consume(offer, line):
                     payable = False
                     break
             if payable:
                 for line in lines:
                     offer = offers[line.offer_id]
-                    offer.reserved_quantity -= line.quantity
-                    offer.available_quantity -= line.quantity
-                    offer.save(update_fields=["reserved_quantity", "available_quantity"])
+                    finish_line(offer, line, consume=True)
                 order.status = Order.Status.PAID
                 order.save(update_fields=["status"])
+                emit(f"order:{order.pk}:paid", "order.paid", order_id=order.pk)
         attempt.status = PaymentAttempt.Status.CAPTURED if payable else PaymentAttempt.Status.REVIEW_REQUIRED
         attempt.save(update_fields=["provider_reference", "status", "updated_at"])
         return payable

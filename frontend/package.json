@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "node tests/marketplace-e2e.cjs",
+    "test:payments": "node --experimental-strip-types tests/payment-redirect.cjs"
   },
   "dependencies": {
     "next": "^16.2.0",
@@ -17,6 +19,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "playwright": "1.62.1",
     "typescript": "^5.0.0"
   }
 }

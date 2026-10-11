@@ -1,6 +1,7 @@
 import json
 
 from django.db import IntegrityError, transaction
+from django.contrib.auth import get_user_model
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
@@ -8,6 +9,7 @@ from django.views.decorators.csrf import csrf_protect
 from django.views.decorators.http import require_http_methods
 
 from catalog.models import Offer, Product, Variant
+from catalog.inventory import InventoryError, activate_locked, set_total_locked
 from accounts.phones import normalize_iran_mobile
 
 from .models import Seller, SellerMembership
@@ -38,6 +40,7 @@ def _offer_data(offer):
         "sku": offer.variant.sku, "price_toman": offer.price_toman,
         "available_quantity": offer.available_quantity, "reserved_quantity": offer.reserved_quantity,
         "warranty": offer.warranty, "fulfillment": offer.fulfillment, "status": offer.status,
+        "inventory_managed": offer.inventory_managed,
     }
 
 
@@ -69,6 +72,9 @@ def apply(request):
     if not 3 <= len(name) <= 200 or not 3 <= len(legal_name) <= 200 or not 8 <= len(business_identifier) <= 32:
         return JsonResponse({"error": "invalid_application"}, status=400)
     with transaction.atomic():
+        user = get_user_model().objects.select_for_update().get(pk=request.user.pk)
+        if not user.is_active:
+            return JsonResponse({"error": "account_unavailable"}, status=403)
         seller = Seller.objects.create(name=name, legal_name=legal_name, business_identifier=business_identifier, contact_phone=contact_phone)
         SellerMembership.objects.create(seller=seller, user=request.user, role=SellerMembership.Role.OWNER)
     return JsonResponse({"store": {"id": seller.pk, "name": seller.name, "status": seller.status}}, status=201)
@@ -143,11 +149,16 @@ def offers(request, seller_id):
         return JsonResponse({"error": "catalog_unavailable"}, status=409)
     try:
         with transaction.atomic():
+            from .inventory_views import authorize_locked
+            authorize_locked(request.user, seller_id)
             offer = Offer.objects.create(
                 seller=membership.seller, variant=variant, price_toman=price,
                 available_quantity=quantity, warranty=warranty.strip(), fulfillment=fulfillment,
                 status=Offer.Status.ACTIVE if quantity else Offer.Status.DRAFT,
             )
+            activate_locked(offer, request.user)
+    except InventoryError as error:
+        return JsonResponse({"error": error.code}, status=error.status)
     except IntegrityError:
         return JsonResponse({"error": "offer_already_exists"}, status=409)
     return JsonResponse({"offer": _offer_data(offer)}, status=201)
@@ -165,7 +176,13 @@ def update_offer(request, seller_id, offer_id):
     if not data or not set(data).issubset({"price_toman", "available_quantity", "warranty", "fulfillment", "status"}):
         return JsonResponse({"error": "invalid_offer"}, status=400)
     with transaction.atomic():
-        offer = get_object_or_404(Offer.objects.select_for_update().select_related("variant__product__category", "variant__product__brand"), pk=offer_id, seller_id=seller_id)
+        from .inventory_views import authorize_locked
+        try:
+            authorize_locked(request.user, seller_id)
+        except InventoryError as error:
+            return JsonResponse({"error": error.code}, status=error.status)
+        offer = get_object_or_404(Offer.objects.select_for_update(of=("self",)).select_related("variant__product__category", "variant__product__brand"), pk=offer_id, seller_id=seller_id)
+        previous_quantity = offer.available_quantity
         if "price_toman" in data:
             value = data["price_toman"]
             if not isinstance(value, int) or isinstance(value, bool) or not 0 < value <= MAX_PRICE_TOMAN:
@@ -199,5 +216,11 @@ def update_offer(request, seller_id, offer_id):
             or (offer.variant.product.brand and not offer.variant.product.brand.is_active)
         ):
             return JsonResponse({"error": "catalog_unavailable"}, status=409)
+        desired_quantity = offer.available_quantity
+        offer.available_quantity = previous_quantity
+        try:
+            set_total_locked(offer, desired_quantity, request.user, "Seller updated total stock")
+        except InventoryError as error:
+            return JsonResponse({"error": error.code}, status=error.status)
         offer.save()
     return JsonResponse({"offer": _offer_data(offer)})

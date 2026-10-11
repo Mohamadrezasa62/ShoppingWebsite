@@ -125,3 +125,48 @@ class CartTests(TestCase):
         self.assertEqual(self.offer.reserved_quantity, 1)
         self.assertEqual(CartLine.objects.count(), 1)
         self.assertEqual(Order.objects.count(), 0)
+
+    def make_pending_order(self):
+        self.client.force_login(self.user)
+        address = Address.objects.create(user=self.user, full_name="Buyer", phone=self.user.phone, province="Tehran", city="Tehran", street="Street", postal_code="1234567890")
+        ShippingRule.objects.create(province="Tehran", fulfillment="seller", fee_toman=100, min_days=1, max_days=2)
+        self.post({"offer_id": self.offer.pk, "quantity": 2})
+        payload = {"address_id": address.pk, "idempotency_key": str(uuid4())}
+        result = self.client.post("/api/v1/commerce/checkout/", json.dumps(payload), content_type="application/json")
+        self.assertEqual(result.status_code, 201)
+        return result.json()["order"]["id"], payload
+
+    def test_idempotency_rejects_changed_address(self):
+        _, payload = self.make_pending_order()
+        payload["address_id"] += 1
+        result = self.client.post("/api/v1/commerce/checkout/", json.dumps(payload), content_type="application/json")
+        self.assertEqual(result.status_code, 409)
+        self.assertEqual(result.json()["error"], "idempotency_conflict")
+
+    def test_unpaid_cancel_is_private_and_releases_once(self):
+        order_id, _ = self.make_pending_order()
+        path = f"/api/v1/commerce/orders/{order_id}/cancel/"
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.post(path).status_code, 404)
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.post(path).status_code, 200)
+        self.assertEqual(self.client.post(path).status_code, 200)
+        self.offer.refresh_from_db()
+        self.assertEqual(self.offer.reserved_quantity, 1)
+        self.assertEqual(Order.objects.get(pk=order_id).status, Order.Status.CANCELLED)
+        self.assertFalse(expire_order(order_id, timezone.now() + timedelta(days=1)))
+
+    def test_paid_order_cannot_use_unpaid_cancellation(self):
+        order_id, _ = self.make_pending_order()
+        Order.objects.filter(pk=order_id).update(status=Order.Status.PAID)
+        self.assertEqual(self.client.post(f"/api/v1/commerce/orders/{order_id}/cancel/").status_code, 409)
+
+    def test_address_patch_is_private_and_quote_rejects_malformed_ids(self):
+        self.client.force_login(self.user)
+        address = Address.objects.create(user=self.user, full_name="Buyer", phone=self.user.phone, province="Tehran", city="Tehran", street="Street", postal_code="1234567890")
+        path = f"/api/v1/commerce/addresses/{address.pk}/"
+        self.assertEqual(self.client.patch(path, json.dumps({"city": "Updated"}), content_type="application/json").status_code, 200)
+        self.client.force_login(self.other)
+        self.assertEqual(self.client.patch(path, json.dumps({"city": "Other"}), content_type="application/json").status_code, 404)
+        for value in ("", "abc", "-1", "1" * 100):
+            self.assertEqual(self.client.get("/api/v1/commerce/quote/", {"address_id": value}).status_code, 400)

@@ -1,0 +1,124 @@
+# Standalone staging/production infrastructure; do not overlay compose.yaml.
+# Requires .env.production; real commerce launch gates remain in the runbook.
+x-backend: &backend
+  image: shopping-backend:${RELEASE_TAG:?Set RELEASE_TAG}
+  build: ./backend
+  env_file: .env.production
+  restart: unless-stopped
+  volumes:
+    - media_data:/app/media
+    - static_data:/app/staticfiles
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  release:
+    <<: *backend
+    restart: "no"
+    profiles: ["release"]
+    command: ["sh", "-ec", "python manage.py deployment_preflight && python manage.py migrate --noinput && python manage.py seed_roles && python manage.py collectstatic --noinput && python manage.py deployment_preflight --services"]
+
+  api:
+    <<: *backend
+    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2", "--timeout", "60", "--access-logfile", "-", "--access-logformat", "%(s)s %(L)s"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/ready/', headers={'Host': 'api', 'X-Forwarded-Proto': 'https'}), timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "config", "worker", "--loglevel=warning", "--concurrency=2"]
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "config", "beat", "--loglevel=warning", "--schedule=/app/beat/celerybeat-schedule"]
+    volumes:
+      - beat_data:/app/beat
+
+  frontend:
+    image: shopping-frontend:${RELEASE_TAG:?Set RELEASE_TAG}
+    build:
+      context: ./frontend
+      args:
+        SITE_URL: https://${SITE_HOST:?Set SITE_HOST}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:8000
+      API_INTERNAL_TLS: "1"
+      SITE_URL: https://${SITE_HOST:?Set SITE_HOST}
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      api:
+        condition: service_healthy
+
+  edge:
+    networks:
+      default:
+        ipv4_address: 172.30.91.10
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - static_data:/srv/static:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  media_data:
+  static_data:
+  beat_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.91.0/24

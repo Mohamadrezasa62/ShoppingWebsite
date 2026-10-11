@@ -11,3 +11,6 @@ dist/
 coverage/
 media/
 staticfiles/
+
+.env.*
+!.env.example

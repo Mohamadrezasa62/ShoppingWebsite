@@ -1,0 +1,32 @@
+{
+  "environment": "synthetic SQLite, not PostgreSQL or production",
+  "source_products": 1000,
+  "source_offers": 2000,
+  "migration_seconds": 2.702,
+  "managed_offers": 2000,
+  "warehouses": 2,
+  "balances": 2000,
+  "movements": 2000,
+  "reservations": 0,
+  "commerce_consistency": {
+    "generated_at": "2026-10-11T06:15:56.967287+00:00",
+    "database_vendor": "sqlite",
+    "snapshot": "sqlite_transaction",
+    "consistent": true,
+    "issue_count": 0,
+    "issues": [],
+    "issues_truncated": false,
+    "counts": {
+      "orders": 0,
+      "offers": 2000,
+      "payment_attempts": 0,
+      "ledger_entries": 0,
+      "review_required_payments": 0
+    },
+    "cash_totals_toman": {
+      "captured": 0,
+      "refunded": 0
+    },
+    "scope": "Structural snapshot checks only; not provider/bank reconciliation, accounting certification, backup completeness or launch acceptance."
+  }
+}

@@ -1,6 +1,9 @@
 # Milestone 11 expansion decision record
 
-Status: deferred until launch and observed demand. No candidate is selected.
+Historical expansion baseline: major commercial candidates remain subject to
+launch evidence. The user subsequently authorized development across the roadmap;
+local privacy, follow/feed and manual risk review capabilities have been delivered.
+This does not approve a paid membership, wallet, native app or multi-region design.
 
 The milestone plan lists personalized recommendations, loyalty points, paid
 membership, seller advertising, wallet or credit enhancements, grocery and
@@ -17,5 +20,6 @@ For each candidate, the product owner should record:
 5. The decision to build, defer, or reject, with the responsible owner.
 
 The first expansion feature should be selected only after Milestone 10 launch
-acceptance and a review of real marketplace demand. No expansion code is
-started on this branch.
+acceptance and a review of real marketplace demand. The current implementation evidence is recorded in
+`docs/releases/IMPLEMENTATION_STATUS.md`; the historical deferral statement does
+not describe all later work on this branch.

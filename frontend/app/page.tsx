@@ -9,11 +9,12 @@ export default function Home() {
       </header>
       <main className="main-content">
         <section className="intro-card" aria-labelledby="page-title">
-          <span className="eyebrow">بازارگاه در حال توسعه</span>
+          <span className="eyebrow">خرید از فروشندگان مختلف</span>
           <h1 id="page-title">تجربه‌ای ساده‌تر برای خرید از فروشندگان مختلف</h1>
-          <p>محصولات منتشرشده را جست‌وجو کنید و پیشنهاد فروشندگان را ببینید. خرید و پرداخت در مراحل بعدی اضافه می‌شود.</p>
+          <p>محصولات را جست‌وجو کنید، قیمت و شرایط فروشندگان را ببینید و سفارش‌های خود را از حساب کاربری پیگیری کنید.</p>
           <a className="catalog-link" href="/products/">مشاهدهٔ محصولات</a>
-          <div className="feature-list" aria-label="بخش‌های برنامه‌ریزی‌شده">
+          <a className="catalog-link" href="/collections/">مجموعه‌های منتخب</a>
+          <div className="feature-list" aria-label="بخش‌های فروشگاه">
             <span>مقایسهٔ پیشنهادها</span>
             <span>پیگیری سفارش</span>
             <span>پنل فروشندگان</span>

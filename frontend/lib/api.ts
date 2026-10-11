@@ -6,7 +6,7 @@ export function csrfToken(): string | undefined {
     ?.split("=")[1];
 }
 
-export async function apiRequest(method: "POST" | "PATCH" | "DELETE", path: string, body?: unknown) {
+export async function apiRequest(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown) {
   await fetch("/api/v1/auth/csrf/", { credentials: "same-origin" });
   return fetch(path, {
     method,

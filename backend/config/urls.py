@@ -13,7 +13,10 @@ def health(_request):
 
 def ready(_request):
     try:
-        connection.ensure_connection()
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            if cursor.fetchone() != (1,):
+                raise RuntimeError("Database not ready")
         cache.set("readiness_probe", "ok", 10)
         if cache.get("readiness_probe") != "ok":
             raise RuntimeError("Cache not ready")

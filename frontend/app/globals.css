@@ -99,3 +99,8 @@ p { color: #475467; max-width: 62ch; }
 .cart-actions button { cursor: pointer; }
 .cart-warning { color: #b42318; }
 @media (max-width: 600px) { .cart-line { flex-direction: column; } }
+
+.comparison-table { width: 100%; border-collapse: collapse; margin-block: 1rem; }
+.comparison-table th, .comparison-table td { border: 1px solid #d6dce4; padding: 1rem; min-width: 160px; text-align: start; vertical-align: top; }
+.comparison-table th { background: #f4f6fa; }
+.comparison-table img { display: block; margin-block: .5rem; max-width: 100%; }

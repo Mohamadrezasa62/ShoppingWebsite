@@ -8,6 +8,17 @@ from sellers.models import Seller
 from .models import Brand, Category, CategoryFacet, Offer, Product, ProductMedia
 
 
+@require_GET
+def sitemap(request):
+    from operations.content_api import visible_pages
+    rows = Product.objects.filter(status="published", category__is_active=True).filter(Q(brand__isnull=True) | Q(brand__is_active=True)).order_by("pk")[:10000]
+    pages = visible_pages().order_by("pk")[:10000]
+    from .merchandising import active_collections
+    collections = active_collections().order_by("pk")[:10000]
+    return JsonResponse({"collections": [{"slug": row.slug, "updated_at": row.updated_at.isoformat()} for row in collections], "products": [{"slug": row.slug, "updated_at": row.updated_at.isoformat()} for row in rows],
+                         "pages": [{"slug": row.slug, "updated_at": row.updated_at.isoformat()} for row in pages]})
+
+
 def visible_offers():
     return Offer.objects.filter(
         status=Offer.Status.ACTIVE,
@@ -17,6 +28,10 @@ def visible_offers():
         variant__product__category__is_active=True,
         available_quantity__gt=F("reserved_quantity"),
     ).filter(Q(variant__product__brand__isnull=True) | Q(variant__product__brand__is_active=True))
+
+
+def visible_products():
+    return Product.objects.filter(status="published", category__is_active=True).filter(Q(brand__isnull=True) | Q(brand__is_active=True))
 
 
 @require_GET
@@ -91,7 +106,7 @@ def products(request):
             if not key.startswith("facet_"):
                 continue
             facet = configured_facets.get(key[6:])
-            if facet is None or value not in facet.choices:
+            if facet is None or facet.key in CategoryFacet._meta.get_field("choices").get_lookups() or "__" in facet.key or facet.key.lstrip("-").isdecimal() or value not in facet.choices:
                 return JsonResponse({"error": "invalid_facet_filter"}, status=400)
             eligible_offers = eligible_offers.filter(**{f"variant__attributes__{facet.key}": value})
     if min_price:
@@ -105,8 +120,8 @@ def products(request):
         queryset = queryset.filter(category__slug=category_slug)
     if brand_slug:
         queryset = queryset.filter(brand__slug=brand_slug, brand__is_active=True)
-    queryset = queryset.select_related("brand", "category").prefetch_related(Prefetch(
-        "media", queryset=ProductMedia.objects.filter(is_approved=True), to_attr="approved_media"
+    queryset = queryset.defer("description", "specifications").select_related("brand", "category").prefetch_related(Prefetch(
+        "media", queryset=ProductMedia.objects.filter(is_approved=True).only("id", "product_id", "alt_text", "position"), to_attr="approved_media"
     )).annotate(starting_price_toman=Min(
         "variants__offers__price_toman", filter=Q(variants__offers__pk__in=eligible_offers.values("pk"))
     ))
@@ -149,5 +164,5 @@ def product_detail(_request, slug):
         "description": product.description, "specifications": product.specifications,
         "images": [_image_data(media) for media in product.approved_media],
         "category": {"name": product.category.name, "slug": product.category.slug},
-        "brand": product.brand.name if product.brand else None, "offers": offer_rows,
+        "brand": product.brand.name if product.brand else None, "brand_id": product.brand_id, "offers": offer_rows,
     }})

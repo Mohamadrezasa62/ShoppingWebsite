@@ -1,11 +1,15 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { InventoryWorkspace } from "@/components/inventory-workspace";
+import { DisputeWorkspace } from "@/components/dispute-workspace";
 import { apiRequest } from "@/lib/api";
+import { SellerTools } from "@/components/seller-tools";
+import { SellerFulfillment } from "@/components/fulfillment-workspace";
 
 type Store = { id: number; name: string; status: string; role: string; description: string; contact_phone: string };
 type Variant = { id: number; sku: string; product_title: string; attributes: Record<string, string> };
-type Offer = { id: number; variant_id: number; product_title: string; sku: string; price_toman: number; available_quantity: number; reserved_quantity: number; warranty: string; fulfillment: string; status: string };
+type Offer = { id: number; variant_id: number; product_title: string; sku: string; price_toman: number; available_quantity: number; reserved_quantity: number; warranty: string; fulfillment: string; status: string; inventory_managed: boolean };
 
 const statusLabels: Record<string, string> = { applied: "در انتظار بررسی", under_review: "در حال بررسی", approved: "تأییدشده", rejected: "ردشده", suspended: "معلق" };
 
@@ -17,18 +21,18 @@ function OfferRow({ offer, storeId, changed }: { offer: Offer; storeId: number; 
   const [message, setMessage] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const response = await apiRequest("PATCH", `/api/v1/seller/stores/${storeId}/offers/${offer.id}/`, { price_toman: Number(price), available_quantity: Number(stock), warranty, status });
+    const response = await apiRequest("PATCH", `/api/v1/seller/stores/${storeId}/offers/${offer.id}/`, { price_toman: Number(price), ...(offer.inventory_managed ? {} : { available_quantity: Number(stock) }), warranty, status });
     if (response.ok) { setMessage("ذخیره شد."); changed(); }
     else { const result = await response.json(); setMessage(result.error === "stock_below_reserved" ? "موجودی کمتر از تعداد رزروشده است." : "ذخیره انجام نشد."); }
   }
   return <li className="admin-record"><strong>{offer.product_title}</strong><p dir="ltr">SKU: {offer.sku}</p><p>موجودی رزروشده: {offer.reserved_quantity.toLocaleString("fa-IR")}</p>
     <form className="admin-inline-form" onSubmit={submit}>
       <label>قیمت (تومان)<input type="number" min="1" required value={price} onChange={(event) => setPrice(event.target.value)} /></label>
-      <label>موجودی<input type="number" min={offer.reserved_quantity} required value={stock} onChange={(event) => setStock(event.target.value)} /></label>
+      <label>موجودی کل<input disabled={offer.inventory_managed} type="number" min={offer.reserved_quantity} required value={stock} onChange={(event) => setStock(event.target.value)} /></label>
       <label>گارانتی<input maxLength={200} value={warranty} onChange={(event) => setWarranty(event.target.value)} /></label>
       <label>وضعیت<select value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">فعال</option><option value="paused">متوقف</option></select></label>
       <button type="submit">ذخیرهٔ پیشنهاد</button>{message && <span role="status">{message}</span>}
-    </form></li>;
+    </form>{offer.inventory_managed && <p>موجودی را در بخش انبارها و موجودی اصلاح کنید.</p>}</li>;
 }
 
 export function SellerWorkspace() {
@@ -105,6 +109,10 @@ export function SellerWorkspace() {
     <h1>فروشگاه‌های من</h1>{error && <p className="admin-alert" role="alert">{error}</p>}{notice && <p className="admin-alert" role="status">{notice}</p>}
     {signedOut ? <p>برای ثبت فروشگاه و مدیریت پیشنهادها <a href="/login/">وارد شوید</a>.</p> : <>
       <div className="seller-store-list">{stores.map((store) => <button type="button" key={store.id} className={selectedId === store.id ? "selected" : ""} onClick={() => setSelectedId(store.id)}>{store.name} · {statusLabels[store.status] ?? store.status}</button>)}</div>
+      {selected && <DisputeWorkspace key={`disputes-${selected.id}`} sellerId={selected.id} />}
+      {selected?.status === "approved" && <InventoryWorkspace key={`inventory-${selected.id}`} storeId={selected.id} owner={selected.role === "owner"} changed={() => void loadOffers(selected.id)} />}
+      {selected && <SellerTools key={`tools-${selected.id}`} storeId={selected.id} />}
+      {selected && <SellerFulfillment key={selected.id} storeId={selected.id} />}
       <section className="admin-card"><h2>درخواست فروشگاه</h2><form className="admin-inline-form" onSubmit={apply}><label>نام فروشگاه<input minLength={3} maxLength={200} required value={applicationName} onChange={(event) => setApplicationName(event.target.value)} /></label><label>نام قانونی<input minLength={3} maxLength={200} required value={legalName} onChange={(event) => setLegalName(event.target.value)} /></label><label>شناسهٔ کسب‌وکار<input minLength={8} maxLength={32} required value={businessIdentifier} onChange={(event) => setBusinessIdentifier(event.target.value)} /></label><label>شمارهٔ تماس<input inputMode="tel" required value={applicationPhone} onChange={(event) => setApplicationPhone(event.target.value)} /></label><button type="submit">ثبت درخواست</button></form><p>پس از بررسی و تأیید مدیر بازارگاه، مدیریت پیشنهادها فعال می‌شود.</p></section>
       {selected && selected.status !== "approved" && <section className="admin-card seller-section"><h2>{selected.name}</h2><p>وضعیت درخواست: {statusLabels[selected.status] ?? selected.status}</p></section>}
       {selected?.status === "approved" && <><section className="admin-card seller-section"><h2>پروفایل {selected.name}</h2><form className="admin-inline-form" onSubmit={saveProfile}><label>توضیح فروشگاه<input maxLength={2000} value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>شمارهٔ تماس<input inputMode="tel" value={profilePhone} onChange={(event) => setProfilePhone(event.target.value)} /></label><button type="submit">ذخیرهٔ پروفایل</button></form></section><section className="admin-card seller-section"><h2>افزودن پیشنهاد به {selected.name}</h2><form className="admin-inline-form" onSubmit={search}><label>جست‌وجوی محصول یا کد مدل<input value={query} onChange={(event) => setQuery(event.target.value)} /></label><button type="submit">جست‌وجو</button></form>

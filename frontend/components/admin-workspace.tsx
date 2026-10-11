@@ -1,10 +1,35 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AccountClosureWorkspace } from "@/components/account-closure";
+import { DisputeWorkspace } from "@/components/dispute-workspace";
+import { CampaignWorkspace } from "@/components/campaign-workspace";
+import { CatalogImports } from "@/components/catalog-imports";
 import { apiRequest } from "@/lib/api";
+import { CancellationWorkspace } from "@/components/cancellation-workspace";
+import { ReturnsWorkspace } from "@/components/returns-workspace";
+import { TaxWorkspace } from "@/components/tax-workspace";
+import { ConfigurationWorkspace } from "@/components/configuration-workspace";
+import { CollectionWorkspace } from "@/components/collection-workspace";
+import { MediaWorkspace } from "@/components/media-workspace";
+import { ProductProposals } from "@/components/product-proposals";
+import { EventWorkspace } from "@/components/event-workspace";
+import { SalesReport } from "@/components/sales-report";
+import { PromotionsWorkspace } from "@/components/promotions-workspace";
+import { SupportWorkspace } from "@/components/support-workspace";
+import { ContentWorkspace } from "@/components/content-workspace";
+import { FinanceWorkspace } from "@/components/finance-workspace";
+import { CatalogManagement } from "@/components/catalog-management";
+import { QuestionModeration } from "@/components/question-moderation";
+import { SellerReviewWorkspace } from "@/components/seller-reviews";
+import { ReviewImageModeration } from "@/components/review-images";
+import { AdminInventory } from "@/components/admin-inventory";
+import { RiskWorkspace } from "@/components/risk-workspace";
+import { ReviewModeration } from "@/components/review-moderation";
+import { AdminOrders } from "@/components/fulfillment-workspace";
 
 type Role = "catalog_operator" | "support_agent" | "finance_operator" | "marketplace_manager" | "system_administrator";
-type Tab = "overview" | "sellers" | "categories" | "staff" | "audit";
+type Tab = "tax" | "inventory" | "risk" | "sellerReviews" | "imports" | "disputes" | "closures" | "overview" | "sellers" | "categories" | "products" | "orders" | "questions" | "reviews" | "cancellations" | "returns" | "finance" | "support" | "content" | "promotions" | "reports" | "staff" | "taxonomy" | "shipping" | "collections" | "media" | "proposals" | "events" | "audit";
 type Profile = { id: number; phone: string; can_access_admin: boolean; staff_roles: Role[]; is_superuser: boolean };
 type Summary = { pending_sellers: number; approved_sellers: number; categories: number; staff_users: number };
 type Seller = { id: number; name: string; legal_name: string; business_identifier: string; contact_phone: string; status: string; review_note: string };
@@ -18,10 +43,34 @@ const roleLabels: Record<Role, string> = {
 };
 const allRoles = Object.keys(roleLabels) as Role[];
 const tabs: { id: Tab; label: string; roles?: Role[] }[] = [
+  { id: "inventory", label: "موجودی انبارها", roles: ["marketplace_manager", "system_administrator"] },
+  { id: "risk", label: "ریسک سفارش", roles: ["support_agent", "finance_operator", "marketplace_manager", "system_administrator"] },
+  { id: "sellerReviews", label: "امتیاز فروشندگان", roles: ["support_agent", "marketplace_manager", "system_administrator"] },
+  { id: "closures", label: "بستن حساب", roles: ["system_administrator"] },
+  { id: "disputes", label: "اختلاف سفارش", roles: ["support_agent", "marketplace_manager", "system_administrator"] },
+  { id: "imports", label: "ورود گروهی کاتالوگ", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
   { id: "overview", label: "نمای کلی" },
+  { id: "reports", label: "گزارش‌ها", roles: ["finance_operator", "marketplace_manager", "system_administrator"] },
+  { id: "promotions", label: "کوپن‌ها", roles: ["marketplace_manager", "system_administrator"] },
+  { id: "support", label: "پشتیبانی", roles: ["support_agent", "marketplace_manager", "system_administrator"] },
+  { id: "collections", label: "مجموعه‌ها", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
+  { id: "content", label: "محتوا", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
+  { id: "cancellations", label: "لغو ارسال", roles: ["support_agent", "finance_operator", "marketplace_manager", "system_administrator"] },
+  { id: "returns", label: "مرجوعی‌ها", roles: ["support_agent", "finance_operator", "marketplace_manager", "system_administrator"] },
+  { id: "finance", label: "امور مالی", roles: ["finance_operator", "system_administrator"] },
+  { id: "questions", label: "پرسش‌های محصول", roles: ["catalog_operator", "support_agent", "system_administrator"] },
+  { id: "reviews", label: "بررسی نظرات", roles: ["catalog_operator", "support_agent", "system_administrator"] },
+  { id: "orders", label: "سفارش‌ها", roles: ["support_agent", "marketplace_manager", "system_administrator"] },
+  { id: "proposals", label: "محصولات پیشنهادی", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
+  { id: "media", label: "تصاویر محصول", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
+  { id: "taxonomy", label: "برند و فیلتر", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
+  { id: "tax", label: "مالیات دسته‌ها", roles: ["marketplace_manager", "system_administrator"] },
+  { id: "shipping", label: "تنظیمات ارسال", roles: ["marketplace_manager", "system_administrator"] },
+  { id: "products", label: "محصولات", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
   { id: "sellers", label: "فروشندگان", roles: ["marketplace_manager", "system_administrator"] },
   { id: "categories", label: "دسته‌بندی‌ها", roles: ["catalog_operator", "marketplace_manager", "system_administrator"] },
   { id: "staff", label: "کارکنان", roles: ["system_administrator"] },
+  { id: "events", label: "سلامت پردازش", roles: ["system_administrator"] },
   { id: "audit", label: "تاریخچهٔ تغییرات", roles: ["system_administrator"] },
 ];
 const sellerChoices: Record<string, string[]> = {
@@ -143,6 +192,30 @@ export function AdminWorkspace() {
     {!profile?.can_access_admin ? <main className="admin-main"><section className="admin-card"><h1>دسترسی مدیریت</h1><p>{error || "در حال بررسی دسترسی..."}</p><a href="/login/">ورود</a></section></main> : <div className="admin-layout">
       <nav className="admin-nav" aria-label="بخش‌های مدیریت">{tabs.filter(canSee).map((item) => <button key={item.id} type="button" className={tab === item.id ? "selected" : ""} onClick={() => { setNotice(""); setTab(item.id); }}>{item.label}</button>)}</nav>
       <main className="admin-main">
+        {tab === "closures" && <AccountClosureWorkspace admin />}
+        {tab === "disputes" && <DisputeWorkspace admin canReview={profile.is_superuser || profile.staff_roles.some((role) => ["marketplace_manager", "system_administrator"].includes(role))} />}
+        {tab === "imports" && <CatalogImports />}
+        {tab === "products" && <CatalogManagement />}
+        {tab === "orders" && <AdminOrders />}
+        {tab === "questions" && <QuestionModeration />}
+        {tab === "taxonomy" && <><ConfigurationWorkspace mode="brands" /><ConfigurationWorkspace mode="facets" /></>}
+        {tab === "tax" && <TaxWorkspace />}
+        {tab === "shipping" && <ConfigurationWorkspace mode="shipping" />}
+        {tab === "collections" && <CollectionWorkspace />}
+        {tab === "media" && <MediaWorkspace />}
+        {tab === "proposals" && <ProductProposals />}
+        {tab === "events" && <EventWorkspace />}
+        {tab === "sellerReviews" && <SellerReviewWorkspace admin />}
+        {tab === "reviews" && <><ReviewModeration /><ReviewImageModeration /></>}
+        {tab === "cancellations" && <CancellationWorkspace admin />}
+        {tab === "returns" && <ReturnsWorkspace admin canRefund={profile.is_superuser || profile.staff_roles.some((role) => ["finance_operator", "system_administrator"].includes(role))} />}
+        {tab === "finance" && <FinanceWorkspace />}
+        {tab === "inventory" && <AdminInventory />}
+        {tab === "risk" && <RiskWorkspace canWrite={profile.is_superuser || profile.staff_roles.some((role) => ["marketplace_manager", "system_administrator"].includes(role))} />}
+        {tab === "support" && <SupportWorkspace admin canReviewEscalation={profile.is_superuser || profile.staff_roles.some((role) => ["marketplace_manager", "system_administrator"].includes(role))} />}
+        {tab === "content" && <ContentWorkspace />}
+        {tab === "promotions" && <><PromotionsWorkspace /><CampaignWorkspace /></>}
+        {tab === "reports" && <SalesReport />}
         {error && <p className="admin-alert" role="alert">{error}</p>}{notice && <p className="admin-alert" role="status">{notice}</p>}
         {tab === "overview" && <section className="admin-card"><h1>نمای کلی</h1><div className="admin-metrics">
           <div><strong>{summary?.pending_sellers ?? "—"}</strong><span>فروشنده در انتظار بررسی</span></div><div><strong>{summary?.approved_sellers ?? "—"}</strong><span>فروشندهٔ تأییدشده</span></div>

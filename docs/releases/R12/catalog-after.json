@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-11T04:36:54.288315+00:00",
+  "database_vendor": "sqlite",
+  "iterations": 30,
+  "products": 1000,
+  "variants": 1000,
+  "offers": 2000,
+  "scope": "In-process public views; warmup excluded. No network, concurrent users, Redis, provider, HTTP server or production SLO is measured.",
+  "results": [
+    {
+      "case": "listing",
+      "p50_ms": 14.946,
+      "p95_ms": 19.75,
+      "max_queries": 2,
+      "max_response_bytes": 4052
+    },
+    {
+      "case": "price_sort",
+      "p50_ms": 12.171,
+      "p95_ms": 15.517,
+      "max_queries": 2,
+      "max_response_bytes": 4018
+    },
+    {
+      "case": "search",
+      "p50_ms": 12.988,
+      "p95_ms": 19.679,
+      "max_queries": 2,
+      "max_response_bytes": 4052
+    },
+    {
+      "case": "category",
+      "p50_ms": 13.676,
+      "p95_ms": 15.845,
+      "max_queries": 3,
+      "max_response_bytes": 4052
+    },
+    {
+      "case": "suggestions",
+      "p50_ms": 4.037,
+      "p95_ms": 4.487,
+      "max_queries": 1,
+      "max_response_bytes": 521
+    },
+    {
+      "case": "detail",
+      "p50_ms": 1.897,
+      "p95_ms": 2.176,
+      "max_queries": 3,
+      "max_response_bytes": 10066
+    },
+    {
+      "case": "related",
+      "p50_ms": 8.314,
+      "p95_ms": 11.346,
+      "max_queries": 3,
+      "max_response_bytes": 912
+    }
+  ]
+}

@@ -8,6 +8,10 @@ Planning is approved. Milestones 1–9 have implementation in progress, Mileston
 
 See [the detailed milestone plan](docs/MILESTONES.md) for scope, order, dependencies, and completion checks.
 
+See [the source-based development roadmap](docs/DEVELOPMENT_ROADMAP.md) for the current implementation gaps, staged delivery plan, acceptance criteria, API mapping, staffing assumptions, and launch gates based on the full marketplace report.
+
+See [implementation evidence and remaining gates](docs/releases/IMPLEMENTATION_STATUS.md) for this development branch. It adds profile editing, customer order history and unpaid cancellation, audited catalog management, and seller/admin fulfillment workflows. Local verification passes; PostgreSQL concurrency, Compose, browser end-to-end and provider certification remain unverified.
+
 ## Release scope
 
 The first release covers the buyer journey from product discovery through delivery or refund, with usable seller and administrator portals. Payment support is designed for a conventional online card gateway and provider adapters for Tara, SnappPay, and DigiPay, subject to merchant approval and each provider's current integration contract. Loyalty, subscriptions, ads, and advanced logistics follow the first release.

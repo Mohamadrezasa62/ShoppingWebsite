@@ -48,10 +48,12 @@ def _cart_data(cart):
             "id": line.pk, "offer_id": offer.pk, "quantity": line.quantity,
             "product_title": offer.variant.product.title, "product_slug": offer.variant.product.slug,
             "variant": offer.variant.attributes, "seller": offer.seller.name,
+            "seller_id": offer.seller_id, "fulfillment": offer.fulfillment,
             "unit_price_toman": offer.price_toman, "line_total_toman": line_total,
             "free_stock": free_stock, "available": available,
         })
     return {"lines": result, "estimated_subtotal_toman": subtotal, "can_checkout": bool(result) and can_checkout,
+            "coupon_code": cart.coupon.code if cart.coupon_id else "",
             "shipping_and_fees_calculated": False}
 
 
@@ -91,7 +93,7 @@ def cart_line(request, line_id):
         return error
     user_cart = get_object_or_404(Cart, user=request.user)
     with transaction.atomic():
-        line = get_object_or_404(CartLine.objects.select_for_update().select_related(
+        line = get_object_or_404(CartLine.objects.select_for_update(of=("self",)).select_related(
             "offer__seller", "offer__variant__product__category", "offer__variant__product__brand"
         ), pk=line_id, cart=user_cart)
         if request.method == "DELETE":
@@ -141,12 +143,24 @@ def addresses(request):
     return JsonResponse({"address": address_data(address)}, status=201)
 
 
-@require_http_methods(["DELETE"])
+@require_http_methods(["PATCH", "DELETE"])
 @csrf_protect
 def delete_address(request, address_id):
     if error := _auth(request):
         return error
     address = get_object_or_404(Address, pk=address_id, user=request.user)
+    if request.method == "PATCH":
+        data = _body(request)
+        allowed = {"full_name", "phone", "province", "city", "street", "postal_code"}
+        if not data or not set(data).issubset(allowed):
+            return JsonResponse({"error": "invalid_address"}, status=400)
+        fields = _address_fields({**{key: getattr(address, key) for key in allowed}, **data})
+        if not fields:
+            return JsonResponse({"error": "invalid_address"}, status=400)
+        for key, value in fields.items():
+            setattr(address, key, value)
+        address.save(update_fields=list(fields))
+        return JsonResponse({"address": address_data(address)})
     address.delete()
     return JsonResponse({"deleted": True})
 
@@ -155,14 +169,32 @@ def delete_address(request, address_id):
 def quote(request):
     if error := _auth(request):
         return error
-    address = get_object_or_404(Address, pk=request.GET.get("address_id"), user=request.user)
+    raw_id = request.GET.get("address_id", "")
+    if not raw_id.isascii() or not raw_id.isdecimal() or len(raw_id) > 18:
+        return JsonResponse({"error": "invalid_address_id"}, status=400)
+    address = get_object_or_404(Address, pk=int(raw_id), user=request.user)
     user_cart, _ = Cart.objects.get_or_create(user=request.user)
-    cart_data = _cart_data(user_cart)
-    if not cart_data["lines"]:
+    rows = list(CartLine.objects.filter(cart=user_cart).select_related("offer__seller", "offer__variant__product").order_by("pk"))
+    if not rows:
         return JsonResponse({"error": "empty_cart"}, status=409)
-    rows = CartLine.objects.filter(cart=user_cart).select_related("offer__seller")
+    subtotal = sum(row.offer.price_toman * row.quantity for row in rows)
     groups = {(row.offer.seller_id, row.offer.fulfillment): row.offer.seller.name for row in rows}
     rules = {row.fulfillment: row for row in ShippingRule.objects.filter(province=address.province, is_active=True)}
+    from .shipping import resolve_choices, resolve_slots, group_key, ShippingChoiceError
+    raw_choices = request.GET.get("shipping_methods", "{}")
+    try:
+        if len(raw_choices) > 4096:
+            raise ValueError()
+        choices = json.loads(raw_choices)
+        selected, options = resolve_choices(groups, rules, choices)
+        raw_slots = request.GET.get("shipping_slots", "{}")
+        if len(raw_slots) > 4096:
+            raise ValueError()
+        windows, available_windows = resolve_slots(selected, json.loads(raw_slots))
+    except (ValueError, RecursionError):
+        return JsonResponse({"error": "invalid_shipping_methods"}, status=400)
+    except ShippingChoiceError as error:
+        return JsonResponse({"error": error.code}, status=409)
     deliveries = []
     missing = []
     shipping_total = 0
@@ -171,41 +203,91 @@ def quote(request):
         if not rule:
             missing.append({"seller_id": seller_id, "fulfillment": fulfillment})
             continue
-        shipping_total += rule.fee_toman
+        key = group_key(seller_id, fulfillment)
+        method = selected[key]
+        shipping_total += method["fee_toman"]
         deliveries.append({
             "seller_id": seller_id, "seller": seller_name, "fulfillment": fulfillment,
-            "fee_toman": rule.fee_toman, "min_days": rule.min_days, "max_days": rule.max_days,
+            "group_key": key, **method, "options": options[key], "window": windows[key], "windows": available_windows[key],
         })
-    ready = cart_data["can_checkout"] and not missing
-    return JsonResponse({"quote": {
-        "address": address_data(address), "item_subtotal_toman": cart_data["estimated_subtotal_toman"],
+    ready = bool(rows) and all(offer_is_visible(row.offer) and row.quantity <= row.offer.available_quantity - row.offer.reserved_quantity for row in rows) and not missing
+    from .promotions import coupon_discount
+    try:
+        discount = coupon_discount(user_cart.coupon, subtotal, request.user)
+        coupon_error = None
+    except ValueError as error:
+        discount, coupon_error, ready = 0, str(error), False
+    from .taxes import calculate_taxes
+    taxes = calculate_taxes(rows, {row.offer_id: row.offer for row in rows}, discount)
+    tax_total = sum(row["amount_toman"] for row in taxes)
+    from .quotes import issue_quote, quote_digest, QUOTE_MAX_AGE
+    from .services import MAX_TOTAL_TOMAN
+    if subtotal + shipping_total + tax_total > MAX_TOTAL_TOMAN:
+        ready = False
+    token = issue_quote(request.user.pk, address.pk, quote_digest(address_data(address), rows, {row.offer_id: row.offer for row in rows}, rules, user_cart.coupon, discount, selected, windows, taxes)) if ready else None
+    response = JsonResponse({"quote": {
+        "address": address_data(address), "item_subtotal_toman": subtotal,
         "shipping_total_toman": shipping_total if ready else None,
-        "estimated_total_toman": cart_data["estimated_subtotal_toman"] + shipping_total if ready else None,
+        "estimated_total_toman": subtotal + shipping_total - discount + tax_total if ready else None,
+        "tax_total_toman": tax_total, "discount_total_toman": discount, "coupon_error": coupon_error,
         "currency": "toman", "deliveries": deliveries, "missing_shipping_rules": missing,
         "ready": ready, "is_final": False,
+        "approval_token": token, "valid_for_seconds": QUOTE_MAX_AGE,
+        "lines": [{"id": row.pk, "product_title": row.offer.variant.product.title,
+                   "seller": row.offer.seller.name, "quantity": row.quantity,
+                   "unit_price_toman": row.offer.price_toman,
+                   "line_total_toman": row.offer.price_toman * row.quantity,
+                   "warranty": row.offer.warranty, "tax": tax} for row, tax in zip(rows, taxes)],
     }})
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 def _order_data(order):
-    deliveries = OrderDelivery.objects.filter(order=order).prefetch_related("lines").order_by("id")
+    deliveries = OrderDelivery.objects.filter(order=order).select_related("cancellation", "dispute").prefetch_related("lines").order_by("id")
     return {
         "id": order.pk, "status": order.status,
-        "item_total_toman": order.item_total_toman,
+        "item_total_toman": order.item_total_toman, "tax_total_toman": order.tax_total_toman,
         "shipping_total_toman": order.shipping_total_toman,
         "grand_total_toman": order.grand_total_toman,
+        "discount_total_toman": order.discount_total_toman, "coupon_code": order.coupon_code,
         "currency": "toman", "address": order.address_snapshot,
         "expires_at": order.expires_at.isoformat(),
+        "created_at": order.created_at.isoformat(),
         "deliveries": [{
+            "id": delivery.pk, "status": delivery.status,
+            "dispute_status": delivery.dispute.status if hasattr(delivery, "dispute") else None, "cancellation_status": delivery.cancellation.status if hasattr(delivery, "cancellation") else None,
+            "tracking_code": delivery.tracking_code,
+            "shipped_at": delivery.shipped_at.isoformat() if delivery.shipped_at else None,
+            "delivered_at": delivery.delivered_at.isoformat() if delivery.delivered_at else None,
             "seller": delivery.seller_name, "fulfillment": delivery.fulfillment,
             "shipping_fee_toman": delivery.shipping_fee_toman,
+            "shipping_method_code": delivery.shipping_method_code, "shipping_method_label": delivery.shipping_method_label,
+            "delivery_window_start": delivery.delivery_window_start.isoformat() if delivery.delivery_window_start else None,
+            "delivery_window_end": delivery.delivery_window_end.isoformat() if delivery.delivery_window_end else None,
             "min_days": delivery.min_days, "max_days": delivery.max_days,
             "lines": [{
+                "id": line.pk,
                 "product_title": line.product_title, "variant": line.variant_attributes,
                 "quantity": line.quantity, "unit_price_toman": line.unit_price_toman,
                 "line_total_toman": line.line_total_toman, "warranty": line.warranty,
+                "discount_toman": line.discount_toman, "tax_toman": line.tax_toman, "tax_rate_bps": line.tax_rate_bps, "tax_label": line.tax_label,
             } for line in delivery.lines.all()],
         } for delivery in deliveries],
     }
+
+
+def delivery_data(delivery):
+    return {"id": delivery.pk, "order_id": delivery.order_id,
+            "status": delivery.status, "tracking_code": delivery.tracking_code,
+            "shipping_method_label": delivery.shipping_method_label,
+            "delivery_window_start": delivery.delivery_window_start.isoformat() if delivery.delivery_window_start else None,
+            "delivery_window_end": delivery.delivery_window_end.isoformat() if delivery.delivery_window_end else None,
+            "dispute_status": delivery.dispute.status if hasattr(delivery, "dispute") else None, "cancellation_status": delivery.cancellation.status if hasattr(delivery, "cancellation") else None,
+            "seller": delivery.seller_name, "shipping_fee_toman": delivery.shipping_fee_toman,
+            "lines": [{"id": line.pk, "product_title": line.product_title,
+                       "quantity": line.quantity, "unit_price_toman": line.unit_price_toman,
+                       "line_total_toman": line.line_total_toman} for line in delivery.lines.all()]}
 
 
 @require_http_methods(["POST"])
@@ -214,11 +296,11 @@ def checkout(request):
     if error := _auth(request):
         return error
     data = _body(request)
-    if not data or set(data) != {"address_id", "idempotency_key"} or not isinstance(data["address_id"], int) or isinstance(data["address_id"], bool):
+    if not data or not {"address_id", "idempotency_key"}.issubset(data) or not set(data).issubset({"address_id", "idempotency_key", "quote_token", "shipping_methods", "shipping_slots"}) or not isinstance(data["address_id"], int) or isinstance(data["address_id"], bool) or ("quote_token" in data and not isinstance(data["quote_token"], str)):
         return JsonResponse({"error": "invalid_checkout"}, status=400)
     from .services import CheckoutError, create_order
     try:
-        order, created = create_order(request.user, data["address_id"], data["idempotency_key"])
+        order, created = create_order(request.user, data["address_id"], data["idempotency_key"], data.get("quote_token"), data.get("shipping_methods"), data.get("shipping_slots"))
     except CheckoutError as error:
         return JsonResponse({"error": error.code}, status=error.status)
     return JsonResponse({"order": _order_data(order)}, status=201 if created else 200)
@@ -240,4 +322,17 @@ def order_detail(request, order_id):
     if error := _auth(request):
         return error
     order = get_object_or_404(Order, pk=order_id, user=request.user)
+    return JsonResponse({"order": _order_data(order)})
+
+
+@require_http_methods(["POST"])
+@csrf_protect
+def cancel_order(request, order_id):
+    if error := _auth(request):
+        return error
+    from .services import CheckoutError, cancel_unpaid_order
+    try:
+        order = cancel_unpaid_order(order_id, request.user)
+    except CheckoutError as error:
+        return JsonResponse({"error": error.code}, status=error.status)
     return JsonResponse({"order": _order_data(order)})

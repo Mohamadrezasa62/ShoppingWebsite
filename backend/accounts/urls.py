@@ -1,8 +1,15 @@
 from django.urls import path
 
-from . import views
+from . import password_views
+from . import views, export_views, closure_views
 
 urlpatterns = [
+    path("staff-password/request-code/", password_views.request_change_code),
+    path("staff-password/change/", password_views.change_password),
+    path("closure-requests/", closure_views.requests),
+    path("closure-requests/<int:case_id>/withdraw/", closure_views.withdraw),
+    path("export/", export_views.export_account),
+    path("revoke-sessions/", views.revoke_sessions),
     path("csrf/", views.csrf),
     path("request-code/", views.request_phone_code),
     path("verify-code/", views.verify_phone_code),

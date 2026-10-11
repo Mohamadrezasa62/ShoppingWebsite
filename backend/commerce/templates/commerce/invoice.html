@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>صورت سفارش {{ order.pk }}</title>
+<style>
+body { font-family: sans-serif; line-height: 1.8; max-width: 1100px; margin: 2rem auto; padding: 0 1rem; color: #18202d; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #bbb; padding: .5rem; text-align: right; }
+caption { text-align: right; font-weight: bold; }
+section { margin-block: 2rem; }
+time, .number { direction: ltr; unicode-bidi: isolate; display: inline-block; }
+@media print { body { margin: 0; max-width: none; } tr { break-inside: avoid; } thead { display: table-header-group; } }
+</style>
+</head>
+<body>
+<h1>صورت سفارش #{{ order.pk }}</h1>
+<p>این خروجی صورت سفارش است؛ گواهی پرداخت یا صورتحساب مالیاتی نیست.</p>
+<p>وضعیت سفارش: {{ order.get_status_display }} · تاریخ ثبت: <time datetime="{{ order.created_at|date:'c' }}">{{ order.created_at|date:'c' }}</time></p>
+<section aria-label="نشانی ثبت‌شده سفارش">
+<h2>گیرنده و نشانی ثبت‌شده</h2>
+<p>{{ order.address_snapshot.full_name }} · <span class="number">{{ order.address_snapshot.phone }}</span></p>
+<p>{{ order.address_snapshot.province }}، {{ order.address_snapshot.city }}، {{ order.address_snapshot.street }}</p>
+<p>کد پستی: <span class="number">{{ order.address_snapshot.postal_code }}</span></p>
+</section>
+{% for delivery in deliveries %}
+<section>
+<h2>مرسوله #{{ delivery.pk }} · {{ delivery.seller_name }}</h2>
+<p>وضعیت مرسوله: {{ delivery.get_status_display }} · روش ارسال: {{ delivery.shipping_method_label }}</p>
+{% if delivery.delivery_window_start and delivery.delivery_window_end %}
+<p>بازهٔ انتخاب‌شده: <time datetime="{{ delivery.delivery_window_start|date:'c' }}">{{ delivery.delivery_window_start|date:'c' }}</time> تا <time datetime="{{ delivery.delivery_window_end|date:'c' }}">{{ delivery.delivery_window_end|date:'c' }}</time> (زمان‌ها با اختلاف از UTC نمایش داده شده‌اند)</p>
+{% else %}<p>برآورد ارسال هنگام ثبت سفارش: {{ delivery.min_days }} تا {{ delivery.max_days }} روز</p>{% endif %}
+{% if delivery.tracking_code %}<p>کد رهگیری: <span class="number">{{ delivery.tracking_code }}</span></p>{% endif %}
+<table>
+<caption>مبالغ کالاهای مرسوله، به تومان</caption>
+<thead><tr><th scope="col">کالا و مشخصات</th><th scope="col">تعداد</th><th scope="col">قیمت واحد</th><th scope="col">مبلغ کالا</th><th scope="col">تخفیف</th><th scope="col">خالص</th><th scope="col">مالیات</th></tr></thead>
+<tbody>{% for row in delivery.invoice_lines %}<tr>
+<td>{{ row.product_title }}{% for key, value in row.variant_attributes.items %}<br>{{ key }}: {{ value }}{% endfor %}{% if row.warranty %}<br>گارانتی: {{ row.warranty }}{% endif %}</td>
+<td>{{ row.quantity }}</td><td>{{ row.unit_price_toman }}</td><td>{{ row.line_total_toman }}</td><td>{{ row.discount_toman }}</td><td>{{ row.net_toman }}</td><td>{{ row.tax_toman }}{% if row.tax_label %}<br>{{ row.tax_label }}{% endif %}</td>
+</tr>{% endfor %}</tbody>
+</table>
+<p>خالص کالاها: {{ delivery.net_items_toman }} · ارسال: {{ delivery.shipping_fee_toman }} · مالیات: {{ delivery.tax_toman }} · جمع مرسوله: {{ delivery.total_toman }} تومان</p>
+</section>
+{% endfor %}
+<section aria-label="جمع سفارش">
+<h2>جمع مبالغ هنگام ثبت سفارش</h2>
+<p>کالاها: {{ order.item_total_toman }} · تخفیف: {{ order.discount_total_toman }}{% if order.coupon_code %} ({{ order.coupon_code }}){% endif %} · ارسال: {{ order.shipping_total_toman }} · مالیات: {{ order.tax_total_toman }}</p>
+<p><strong>جمع سفارش: {{ order.grand_total_toman }} تومان</strong></p>
+<p>مبالغ بالا بر پایهٔ اطلاعات ثبت‌شدهٔ سفارش هستند و با تغییر قیمت یا تنظیمات ارسال تغییر نمی‌کنند. این جمع، ماندهٔ پرداخت پس از لغو یا بازپرداخت نیست.</p>
+</section>
+</body>
+</html>

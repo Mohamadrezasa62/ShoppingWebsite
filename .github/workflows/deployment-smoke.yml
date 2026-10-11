@@ -1,0 +1,46 @@
+name: Deployment smoke
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  staging-stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - name: Write disposable CI configuration
+        run: |
+          python - <<'PY'
+          import os, secrets
+          from pathlib import Path
+          source = Path('deploy/production.env.example').read_text()
+          source = source.replace('replace-with-reviewed-git-sha', 'ci')
+          source = source.replace('shop.example.com', 'shop.test')
+          source = source.replace('operator@example.com', 'operator@shop.test')
+          source = source.replace('replace-with-at-least-50-random-characters', secrets.token_urlsafe(64))
+          source = source.replace('replace-with-a-random-database-password', secrets.token_urlsafe(32))
+          Path('.env.production').write_text(source)
+          os.chmod('.env.production', 0o600)
+          PY
+      - name: Validate Compose and edge configuration
+        run: |
+          docker compose --env-file .env.production -f compose.production.yaml config --quiet
+          docker run --rm -e SITE_HOST=shop.test -e ACME_EMAIL=operator@shop.test -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Build runtime images
+        run: docker compose --env-file .env.production -f compose.production.yaml build api frontend
+      - name: Apply release and start isolated stack
+        run: |
+          docker compose --env-file .env.production -f compose.production.yaml up -d --wait db redis
+          docker compose --env-file .env.production -f compose.production.yaml run --rm release
+          docker compose --env-file .env.production -f compose.production.yaml up -d --wait api worker beat frontend
+      - name: Verify readiness and server-rendered catalog
+        run: |
+          docker compose --env-file .env.production -f compose.production.yaml exec -T api python -c "import urllib.request; r=urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:8000/ready/', headers={'Host':'shop.test','X-Forwarded-Proto':'https'}),timeout=10); assert r.status == 200"
+          docker compose --env-file .env.production -f compose.production.yaml exec -T frontend node -e "fetch('http://127.0.0.1:3000/collections/').then(async r=>{if(r.status!==200||!(await r.text()).includes('مجموعه‌های منتخب'))process.exit(1)}).catch(()=>process.exit(1))"
+      - name: Cleanup disposable data and secrets
+        if: always()
+        run: |
+          docker compose --env-file .env.production -f compose.production.yaml down --volumes --remove-orphans
+          rm -f .env.production

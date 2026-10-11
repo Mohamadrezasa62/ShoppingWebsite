@@ -48,6 +48,10 @@ class VariantAdmin(admin.ModelAdmin):
 class OfferAdmin(admin.ModelAdmin):
     list_display = ("variant", "seller", "price_toman", "available_quantity", "reserved_quantity", "status")
     list_filter = ("status", "fulfillment")
+    readonly_fields = ("available_quantity", "reserved_quantity", "inventory_managed", "inventory_activated_at")
+
+    def get_readonly_fields(self, request, obj=None):
+        return (*self.readonly_fields, "seller", "variant") if obj else self.readonly_fields
 
 
 @admin.register(ProductReview)
