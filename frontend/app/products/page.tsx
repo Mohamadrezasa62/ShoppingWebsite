@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ProductsBrowser from "./products-browser";
 
 export const metadata: Metadata = {
-  title: "جست‌وجوی محصولات | ShoppingWebsite",
+  title: "جست‌وجوی محصولات",
   description: "جست‌وجوی محصولات، فیلتر دسته‌بندی و برند، و مقایسهٔ قیمت فروشندگان.",
 };
 

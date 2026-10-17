@@ -105,7 +105,7 @@ export function SellerWorkspace() {
     else setError("اطلاعات فروشگاه ذخیره نشد.");
   }
 
-  return <div className="admin-shell"><header className="admin-header"><a href="/" className="brand">ShoppingWebsite</a><span>پنل فروشنده</span><a href="/account/">حساب من</a></header><main className="catalog-main">
+  return <div className="admin-shell"><header className="admin-header"><a href="/" className="brand">گزیناو</a><span>پنل فروشنده</span><a href="/account/">حساب من</a></header><main className="catalog-main">
     <h1>فروشگاه‌های من</h1>{error && <p className="admin-alert" role="alert">{error}</p>}{notice && <p className="admin-alert" role="status">{notice}</p>}
     {signedOut ? <p>برای ثبت فروشگاه و مدیریت پیشنهادها <a href="/login/">وارد شوید</a>.</p> : <>
       <div className="seller-store-list">{stores.map((store) => <button type="button" key={store.id} className={selectedId === store.id ? "selected" : ""} onClick={() => setSelectedId(store.id)}>{store.name} · {statusLabels[store.status] ?? store.status}</button>)}</div>

@@ -8,11 +8,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   try {
     const product = await getProduct(slug);
-    if (!product) return { title: "محصول در دسترس نیست | ShoppingWebsite", robots: { index: false } };
+    if (!product) return { title: "محصول در دسترس نیست", robots: { index: false } };
     const description = product.description?.slice(0, 160) || `مقایسهٔ قیمت و فروشندگان ${product.title}`;
-    return { title: `${product.title} | ShoppingWebsite`, description, alternates: { canonical: `${siteUrl}/products/${encodeURIComponent(slug)}/` }, openGraph: { title: product.title, description } };
+    return { title: `${product.title}`, description, alternates: { canonical: `${siteUrl}/products/${encodeURIComponent(slug)}/` }, openGraph: { title: product.title, description } };
   } catch {
-    return { title: "ShoppingWebsite", robots: { index: false } };
+    return { title: "گزیناو", robots: { index: false } };
   }
 }
 

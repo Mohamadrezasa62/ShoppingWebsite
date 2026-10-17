@@ -7,7 +7,7 @@ from django.utils.crypto import salted_hmac
 from .services import TooManyRequests, AuthenticationUnavailable
 
 
-LIMITS = {"request": ((600, 20), (3600, 100)), "verify": ((900, 100),)}
+LIMITS = {"request": ((600, 20), (3600, 100)), "verify": ((900, 100),), "email_login": ((900, 30),), "email_register": ((3600, 10),)}
 
 
 def client_identity(request):

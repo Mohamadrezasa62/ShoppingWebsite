@@ -2,8 +2,11 @@ from django.urls import path
 
 from . import password_views
 from . import views, export_views, closure_views
+from . import email_views
 
 urlpatterns = [
+    path("email/login/", email_views.sign_in),
+    path("email/register/", email_views.register),
     path("staff-password/request-code/", password_views.request_change_code),
     path("staff-password/change/", password_views.change_password),
     path("closure-requests/", closure_views.requests),

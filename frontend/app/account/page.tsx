@@ -7,7 +7,8 @@ import { NotificationPreferences } from "@/components/campaign-workspace";
 import { apiRequest } from "@/lib/api";
 
 type Profile = {
-  phone: string;
+  phone: string | null;
+  email: string;
   first_name: string;
   last_name: string;
   is_staff: boolean;
@@ -50,10 +51,11 @@ export default function AccountPage() {
   }, []);
 
   return <main className="form-page"><section className="form-card">
-    <a href="/" className="brand">ShoppingWebsite</a>
+    <a href="/" className="brand">گزیناو</a>
     <h1>حساب کاربری</h1>
     {error ? <><p>{error}</p><a href="/login">ورود</a></> : profile ? <>
-      <p>شمارهٔ موبایل: <span dir="ltr">{profile.phone}</span></p>
+      {profile.phone && <p>شمارهٔ موبایل: <span dir="ltr">{profile.phone}</span></p>}
+      {profile.email && <p>ایمیل: <span dir="ltr">{profile.email}</span></p>}
       <form className="admin-inline-form" onSubmit={save}><label>نام<input name="first_name" defaultValue={profile.first_name} maxLength={150} /></label><label>نام خانوادگی<input name="last_name" defaultValue={profile.last_name} maxLength={150} /></label><button disabled={busy}>ذخیرهٔ پروفایل</button></form>
       {notice && <p role="status">{notice}</p>}
       <nav className="account-links" aria-label="بخش‌های حساب">

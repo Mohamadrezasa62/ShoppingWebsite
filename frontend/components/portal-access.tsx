@@ -12,7 +12,7 @@ export function PortalAccess({ title, endpoint }: { title: string; endpoint: str
   }, [endpoint]);
 
   return <main className="form-page"><section className="form-card">
-    <a href="/account" className="brand">ShoppingWebsite</a>
+    <a href="/account" className="brand">گزیناو</a>
     <h1>{title}</h1>
     {state === "loading" && <p>در حال بررسی دسترسی...</p>}
     {state === "denied" && <p>دسترسی به این بخش برای حساب شما فعال نیست.</p>}

@@ -6,10 +6,10 @@ from .phones import normalize_iran_mobile
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
-    def create_user(self, phone, password=None, **extra_fields):
-        if not phone:
-            raise ValueError("A phone number is required")
-        user = self.model(phone=normalize_iran_mobile(phone), **extra_fields)
+    def create_user(self, phone=None, password=None, **extra_fields):
+        if not phone and not extra_fields.get("email"):
+            raise ValueError("A phone number or email is required")
+        user = self.model(phone=normalize_iran_mobile(phone) if phone else None, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user

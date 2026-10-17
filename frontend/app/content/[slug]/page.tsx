@@ -10,7 +10,7 @@ const getPage = cache(async (slug: string): Promise<{ title: string; body: strin
 });
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  try { const page = await getPage(slug); return page ? { title: `${page.title} | ShoppingWebsite`, description: page.body.slice(0, 160), alternates: { canonical: `${siteUrl}/content/${encodeURIComponent(slug)}/` } } : { robots: { index: false } }; }
+  try { const page = await getPage(slug); return page ? { title: `${page.title}`, description: page.body.slice(0, 160), alternates: { canonical: `${siteUrl}/content/${encodeURIComponent(slug)}/` } } : { robots: { index: false } }; }
   catch { return { robots: { index: false } }; }
 }
 export default async function ContentPage({ params }: { params: Promise<{ slug: string }> }) {

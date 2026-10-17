@@ -2,6 +2,14 @@
 
 A Persian, right-to-left multi-seller marketplace for Iran. Product prices are displayed in toman.
 
+## Gozinav interface and authentication
+
+The working storefront identity is **گزیناو / Gozinav**. The responsive interface uses a dark navigation rail on larger screens, bottom navigation on phones, collapsible mobile catalog filters, and shared text-led banners with an original geometric logo. Brand tokens, reference interpretation, responsive widths and route groups are recorded in [`design/gozinav/system.json`](design/gozinav/system.json). Editable screen layouts at 390, 1024 and 1440 pixels are in the [Figma file](https://www.figma.com/design/DGcCzSUrREINw0xia8JUDE); its frame connections form a screen-review sequence. The brand name is provisional; trademark and domain availability have not been established.
+
+Buyers can sign in with a phone verification code or an email and password. Email registration creates an email-only buyer account and requires a password of at least 10 characters that passes Django's configured validators. Migration `accounts.0004_user_email_login` makes phone optional and enforces case-insensitive uniqueness for nonempty email addresses. Audit existing duplicate email addresses before applying it to an established database. Existing phone accounts are not automatically merged with email accounts. Email registration does not verify ownership, and email verification/password recovery delivery is not configured by this change. Staff still need their existing phone verification and password flow; email login cannot bypass it.
+
+Apply migrations with `python backend/manage.py migrate`. For a local frontend connected to a standalone API on port 8000, include `http://127.0.0.1:5067` in `CSRF_TRUSTED_ORIGINS`. Keep production HTTPS, cookie and SMS settings enabled for deployment. Local interface development can use `npm --prefix frontend run dev -- --hostname 127.0.0.1 --port 5067`.
+
 ## Project status
 
 Planning is approved. Milestones 1–9 have implementation in progress, Milestone 10 has a launch gate review, and Milestone 11 has a data-dependent decision record. No milestone has passed its completion checks yet.

@@ -188,7 +188,7 @@ export function AdminWorkspace() {
   }
 
   return <div className="admin-shell">
-    <header className="admin-header"><a href="/account/" className="brand">ShoppingWebsite</a><span>پنل مدیریت</span>{profile && <span dir="ltr">{profile.phone}</span>}</header>
+    <header className="admin-header"><a href="/account/" className="brand">گزیناو</a><span>پنل مدیریت</span>{profile && <span dir="ltr">{profile.phone}</span>}</header>
     {!profile?.can_access_admin ? <main className="admin-main"><section className="admin-card"><h1>دسترسی مدیریت</h1><p>{error || "در حال بررسی دسترسی..."}</p><a href="/login/">ورود</a></section></main> : <div className="admin-layout">
       <nav className="admin-nav" aria-label="بخش‌های مدیریت">{tabs.filter(canSee).map((item) => <button key={item.id} type="button" className={tab === item.id ? "selected" : ""} onClick={() => { setNotice(""); setTab(item.id); }}>{item.label}</button>)}</nav>
       <main className="admin-main">
